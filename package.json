@@ -1,0 +1,1 @@
+{"name":"sas-chits-system","private":true,"scripts":{"sync":"node -e \"const fs=require('fs'); const src='packages/shared/src/chit.ts'; fs.copyFileSync(src, 'apps/web/src/chit.ts'); fs.copyFileSync(src, 'apps/mobile/chit.ts');\""}}

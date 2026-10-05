@@ -1,0 +1,9 @@
+{
+  "name": "Sri Ande Sivaiah Chits",
+  "short_name": "SAS Chits",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f6f5fa",
+  "theme_color": "#101224",
+  "icons": [{ "src": "/logo.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any" }]
+}
