@@ -19,7 +19,7 @@ import {
   rupees,
   todayISO,
 } from "../chit";
-import { openReceiptChatWithImage, receiptImageSavedLocation, RECEIPT_SELECT, saveReceiptImageToDevice } from "../receipts";
+import { receiptImageSavedLocation, RECEIPT_SELECT, saveReceiptImageToDevice, shareReceiptImageToWhatsApp } from "../receipts";
 import { ScreenProps } from "../navigation";
 import { styles as st } from "../styles";
 import ReceiptShareCard from "../ReceiptShareCard";
@@ -107,12 +107,15 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
     try {
       const uri = await imageRef.current?.capture();
       if (!uri) throw new Error("Receipt image is not ready. Try again.");
-      await openReceiptChatWithImage(uri, shareTarget, shareTarget.memberships?.customers?.phone);
+      const directWhatsAppShare = await shareReceiptImageToWhatsApp(uri, shareTarget, shareTarget.memberships?.customers?.phone);
       setShareTarget(null);
-      Alert.alert("WhatsApp chat opened", `Receipt image saved in ${receiptImageSavedLocation()}. Attach it in this chat, then tap Send.`);
+      Alert.alert(
+        directWhatsAppShare ? "Receipt ready in WhatsApp" : "Receipt image shared",
+        directWhatsAppShare ? "The receipt image and message are prepared for the member. Review them and tap Send in WhatsApp." : "Choose WhatsApp from the share options, select the member, then tap Send.",
+      );
     } catch (e) {
       Alert.alert(
-        "Could not open member chat",
+        "Could not share receipt to WhatsApp",
         e instanceof Error ? e.message : String(e),
       );
     } finally {

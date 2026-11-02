@@ -23,12 +23,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#101224"
-      },
-      "permissions": [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
-      ]
+      }
     },
     "ios": {
       "bundleIdentifier": "com.saschits.app"
@@ -41,7 +36,16 @@
           "savePhotosPermission": "Allow AndeSivaiah Chits to save receipt images to Photos.",
           "granularPermissions": []
         }
-      ]
+      ],
+      [
+        "react-native-share",
+        {
+          "android": [
+            "com.whatsapp"
+          ]
+        }
+      ],
+      "expo-build-properties"
     ],
     "extra": {
       "eas": {

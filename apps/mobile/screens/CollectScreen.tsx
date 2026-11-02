@@ -3,7 +3,7 @@ import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'reac
 import { ViewShotRef } from 'react-native-view-shot'
 import { supabase, supabaseErrorMessage } from '../supabase'
 import { monthName, PAYMENT_MODES, rupees, todayISO, toPaise, toRupees } from '../chit'
-import { openReceiptChatWithImage, receiptImageSavedLocation, RECEIPT_SELECT, saveReceiptImageToDevice } from '../receipts'
+import { receiptImageSavedLocation, RECEIPT_SELECT, saveReceiptImageToDevice, shareReceiptImageToWhatsApp } from '../receipts'
 import { ScreenProps } from '../navigation'
 import { styles as st } from '../styles'
 import { enqueuePayment, isConnectionError, newRequestId, PendingPayment, syncPendingPayments } from '../offlinePayments'
@@ -82,9 +82,12 @@ export default function CollectScreen({ navigation, route }: ScreenProps<'Collec
     try {
       const uri = await imageRef.current?.capture()
       if (!uri) throw new Error('Receipt image is not ready. Try again.')
-      await openReceiptChatWithImage(uri, r, due.phone)
-      Alert.alert('WhatsApp chat opened', `Receipt image saved in ${receiptImageSavedLocation()}. Attach it in this chat, then tap Send.`)
-    } catch (shareError) { Alert.alert('Could not open member chat', shareError instanceof Error ? shareError.message : String(shareError)) }
+      const directWhatsAppShare = await shareReceiptImageToWhatsApp(uri, r, due.phone)
+      Alert.alert(
+        directWhatsAppShare ? 'Receipt ready in WhatsApp' : 'Receipt image shared',
+        directWhatsAppShare ? 'The receipt image and message are prepared for the member. Review them and tap Send in WhatsApp.' : 'Choose WhatsApp from the share options, select the member, then tap Send.',
+      )
+    } catch (shareError) { Alert.alert('Could not share receipt to WhatsApp', shareError instanceof Error ? shareError.message : String(shareError)) }
     finally { setBusy(false) }
   }
 

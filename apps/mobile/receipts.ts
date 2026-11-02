@@ -3,8 +3,9 @@ import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as MediaLibrary from 'expo-media-library/legacy'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Linking, Platform } from 'react-native'
-import { phoneDigits, receiptHtml, receiptWhatsAppText, whatsappLink } from './chit'
+import { Platform } from 'react-native'
+import Share, { ShareSingleOptions } from 'react-native-share'
+import { phoneDigits, receiptHtml, receiptWhatsAppText } from './chit'
 import { LOGO } from './logoData'
 
 export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series)), payment_allocations(id,amount,allocation_type,installments(month_label))'
@@ -50,8 +51,23 @@ export async function saveReceiptImageToDevice(uri: string, receiptNo?: string |
   await MediaLibrary.saveToLibraryAsync(uri)
 }
 
-export async function openReceiptChatWithImage(uri: string, receipt: any, phone?: string | null) {
-  if (!phoneDigits(phone)) throw new Error('This member has no valid phone number saved.')
-  await saveReceiptImageToDevice(uri, receipt?.receipt_no)
-  await Linking.openURL(whatsappLink(phone, receiptWhatsAppText(receipt)))
+export async function shareReceiptImageToWhatsApp(uri: string, receipt: any, phone?: string | null): Promise<boolean> {
+  const number = phoneDigits(phone)
+  if (!number) throw new Error('This member has no valid phone number saved.')
+
+  if (Platform.OS === 'android') {
+    const { isInstalled } = await Share.isPackageInstalled('com.whatsapp')
+    if (!isInstalled) throw new Error('WhatsApp is not installed on this phone.')
+    await Share.shareSingle({
+      social: Share.Social.WHATSAPP,
+      whatsAppNumber: number,
+      url: uri,
+      type: 'image/png',
+      message: receiptWhatsAppText(receipt),
+    } as ShareSingleOptions & { whatsAppNumber: string })
+    return true
+  }
+
+  await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: `Receipt ${receipt?.receipt_no} image` })
+  return false
 }
