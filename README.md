@@ -87,7 +87,7 @@ npm run build
 npm run preview
 ```
 
-For Vercel, import the repository, set the root/build configuration to `apps/web`, and add the two `VITE_SUPABASE_*` environment variables. The SPA route fallback is configured in `apps/web/vercel.json`.
+For Vercel, import the repository, set the root/build configuration to `apps/web`, and add the two `VITE_SUPABASE_*` environment variables. Follow the [Vercel website deployment guide](./VERCEL_DEPLOYMENT.md) for the full setup and launch checklist. The SPA route fallback is configured in `apps/web/vercel.json`.
 
 ### 3. Mobile app commands (PowerShell)
 

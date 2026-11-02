@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
-import * as Sharing from 'expo-sharing'
 import { ViewShotRef } from 'react-native-view-shot'
 import { supabase, supabaseErrorMessage } from '../supabase'
 import { monthName, PAYMENT_MODES, rupees, todayISO, toPaise, toRupees } from '../chit'
-import { RECEIPT_SELECT, shareReceipt } from '../receipts'
+import { openReceiptChatWithImage, receiptImageSavedLocation, RECEIPT_SELECT, saveReceiptImageToDevice } from '../receipts'
 import { ScreenProps } from '../navigation'
 import { styles as st } from '../styles'
 import { enqueuePayment, isConnectionError, newRequestId, PendingPayment, syncPendingPayments } from '../offlinePayments'
@@ -83,17 +82,23 @@ export default function CollectScreen({ navigation, route }: ScreenProps<'Collec
     try {
       const uri = await imageRef.current?.capture()
       if (!uri) throw new Error('Receipt image is not ready. Try again.')
-      await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: `Receipt ${r.receipt_no} image` })
-    } catch (shareError) { Alert.alert('Could not share receipt image', shareError instanceof Error ? shareError.message : String(shareError)) }
+      await openReceiptChatWithImage(uri, r, due.phone)
+      Alert.alert('WhatsApp chat opened', `Receipt image saved in ${receiptImageSavedLocation()}. Attach it in this chat, then tap Send.`)
+    } catch (shareError) { Alert.alert('Could not open member chat', shareError instanceof Error ? shareError.message : String(shareError)) }
     finally { setBusy(false) }
   }
 
-  const handleSharePdf = async (r: any) => {
+  const downloadReceiptImage = async () => {
+    setBusy(true)
     try {
-      await shareReceipt(r)
+      const uri = await imageRef.current?.capture()
+      if (!uri) throw new Error('Receipt image is not ready. Try again.')
+      await saveReceiptImageToDevice(uri, savedReceipt.receipt_no)
+      Alert.alert('Receipt saved', `The receipt image is in ${receiptImageSavedLocation()}.`)
     } catch (shareError) {
-      Alert.alert('Receipt sharing failed', shareError instanceof Error ? shareError.message : String(shareError))
+      Alert.alert('Could not save receipt image', shareError instanceof Error ? shareError.message : String(shareError))
     }
+    finally { setBusy(false) }
   }
 
   const field = (label: string, name: string, numeric = true) => <View key={name}>
@@ -118,15 +123,15 @@ export default function CollectScreen({ navigation, route }: ScreenProps<'Collec
         )}
       </View>
 
-      {!savedReceipt.pending && <><Text style={[st.lb, { textAlign: 'center', marginTop: 12 }]}>Receipt image preview</Text><ReceiptShareCard ref={imageRef} receipt={savedReceipt} /></>}
-
       {!savedReceipt.pending && <TouchableOpacity style={[st.btn, { backgroundColor: '#25D366', marginTop: 12 }]} disabled={busy} onPress={() => { void shareReceiptImage(savedReceipt) }}>
         <Text style={st.bt}>{busy ? 'Preparing image…' : '💬 Chat receipt image'}</Text>
       </TouchableOpacity>}
 
-      {!savedReceipt.pending && <TouchableOpacity style={[st.btn, { backgroundColor: '#2B1A6B', marginTop: 10 }]} onPress={() => handleSharePdf(savedReceipt)}>
-        <Text style={st.bt}>📄 Save / Share receipt PDF</Text>
+      {!savedReceipt.pending && <TouchableOpacity style={[st.btn, { backgroundColor: '#2B1A6B', marginTop: 10 }]} disabled={busy} onPress={() => { void downloadReceiptImage() }}>
+        <Text style={st.bt}>{busy ? 'Saving…' : 'Receipt ⬇️'}</Text>
       </TouchableOpacity>}
+
+      {!savedReceipt.pending && <><Text style={[st.lb, { textAlign: 'center', marginTop: 16 }]}>Receipt image preview</Text><ReceiptShareCard ref={imageRef} receipt={savedReceipt} /></>}
       {savedReceipt.pending && <TouchableOpacity style={[st.btn, { backgroundColor: '#2B1A6B', marginTop: 10 }]} disabled={busy} onPress={syncNow}><Text style={st.bt}>{busy ? 'Syncing…' : 'Sync pending payment now'}</Text></TouchableOpacity>}
 
       <TouchableOpacity style={[st.btn, { backgroundColor: '#666', marginTop: 10 }]} onPress={() => navigation.goBack()}>

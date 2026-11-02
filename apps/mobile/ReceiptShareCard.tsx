@@ -1,25 +1,28 @@
 import { forwardRef } from 'react'
-import { Image, Text, View } from 'react-native'
+import { Image, Text, View, useWindowDimensions } from 'react-native'
 import ViewShot, { ViewShotRef } from 'react-native-view-shot'
 import { amountInWords, COMPANY, formatDate, monthName, rupees } from './chit'
 
 const ReceiptShareCard = forwardRef<ViewShotRef, { receipt: any }>(function ReceiptShareCard({ receipt }, ref) {
+  const { width: windowWidth } = useWindowDimensions()
+  const cardWidth = Math.max(250, Math.min(470, windowWidth - 56))
+  const small = windowWidth < 380
   const member = receipt.memberships?.customers?.name || receipt.name || 'Member'
   const group = receipt.memberships?.chit_groups?.series || receipt.series || '—'
   const ticket = receipt.memberships?.ticket_no ?? receipt.ticket_no ?? '—'
   const row = (label: string, value: string, bold = false) => <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 7, borderBottomWidth: 1, borderColor: '#222' }}>
-    <Text style={{ color: '#111', fontSize: 11, fontWeight: bold ? '700' : '400', flex: 1 }}>{label}</Text>
-    <Text style={{ color: '#111', fontSize: 11, fontWeight: bold ? '700' : '400', textAlign: 'right', flex: 1 }}>{value}</Text>
+    <Text style={{ color: '#111', fontSize: small ? 9 : 11, fontWeight: bold ? '700' : '400', flex: 1, flexShrink: 1 }}>{label}</Text>
+    <Text style={{ color: '#111', fontSize: small ? 9 : 11, fontWeight: bold ? '700' : '400', textAlign: 'right', flex: 1, flexShrink: 1 }}>{value}</Text>
   </View>
-  return <ViewShot ref={ref} options={{ format: 'png', quality: 1, result: 'tmpfile' }} style={{ alignSelf: 'center', marginVertical: 12 }}>
-    <View style={{ width: 350, padding: 10, backgroundColor: '#fff', borderWidth: 2, borderColor: '#111' }}>
+  return <ViewShot ref={ref} options={{ format: 'png', quality: 1, result: 'tmpfile' }} style={{ alignSelf: 'center', width: cardWidth, maxWidth: '100%', marginVertical: 12 }}>
+    <View style={{ width: '100%', padding: small ? 7 : 10, backgroundColor: '#fff', borderWidth: 2, borderColor: '#111' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 2, borderColor: '#111', paddingBottom: 8 }}>
         <Image source={require('./assets/logo.jpg')} style={{ width: 50, height: 50, borderRadius: 25 }} />
         <View style={{ flex: 1 }}>
-          <Text style={{ color: '#2B1A6B', fontSize: 10, fontWeight: '700' }}>{COMPANY.te}</Text>
-          <Text style={{ color: '#E10F17', fontSize: 11, fontWeight: '800' }}>{COMPANY.name}</Text>
-          <Text style={{ color: '#333', fontSize: 7 }}>{COMPANY.addr}</Text>
-          <Text style={{ color: '#555', fontSize: 7 }}>RgNo: {COMPANY.reg} · GSTIN: {COMPANY.gstin} · Cell: {COMPANY.cell}</Text>
+          <Text style={{ color: '#2B1A6B', fontSize: small ? 8 : 10, fontWeight: '700' }}>{COMPANY.te}</Text>
+          <Text style={{ color: '#E10F17', fontSize: small ? 9 : 11, fontWeight: '800' }}>{COMPANY.name}</Text>
+          <Text style={{ color: '#333', fontSize: small ? 6 : 7 }}>{COMPANY.addr}</Text>
+          <Text style={{ color: '#555', fontSize: small ? 6 : 7 }}>RgNo: {COMPANY.reg} · GSTIN: {COMPANY.gstin} · Cell: {COMPANY.cell}</Text>
         </View>
         <Text style={{ borderWidth: 1, borderColor: '#111', padding: 4, color: '#111', fontSize: 8, fontWeight: '700' }}>{String(receipt.mode || 'Cash').toUpperCase()}</Text>
       </View>

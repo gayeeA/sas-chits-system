@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { supabase, supabaseErrorMessage } from '../supabase'
 import { PAYMENT_MODES, todayISO, toPaise, rupees } from '../chit'
@@ -16,6 +16,7 @@ export default function LegacyReceiptScreen({ navigation }: ScreenProps<'LegacyR
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null)
+  const { width: screenWidth } = useWindowDimensions()
 
   useEffect(() => {
     let live = true
@@ -75,9 +76,9 @@ export default function LegacyReceiptScreen({ navigation }: ScreenProps<'LegacyR
 
   return <ScrollView style={st.page} keyboardShouldPersistTaps="handled">
     <TouchableOpacity style={[st.smallBtn, { alignSelf: 'flex-start', marginBottom: 8 }]} onPress={() => navigation.goBack()}><Text>‹ Back</Text></TouchableOpacity>
-    <View style={[st.row, { alignItems: 'center', marginBottom: 4 }]}>
-      <Text style={[st.title, { flex: 1, marginBottom: 0 }]}>Enter Paper Receipt</Text>
-      <TouchableOpacity style={[st.btn, { marginTop: 0, paddingVertical: 10, paddingHorizontal: 18, opacity: busy || !allowed || !selected || !form.month || !form.date || toPaise(form.amount) <= 0 ? 0.45 : 1 }]}
+    <View style={[st.row, { alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }]}>
+      <Text style={[st.title, { flex: 1, flexShrink: 1, minWidth: screenWidth < 360 ? 160 : 190, fontSize: screenWidth < 380 ? 19 : 22, marginBottom: 0 }]} numberOfLines={2}>Enter Paper Receipt</Text>
+      <TouchableOpacity style={[st.btn, { flexShrink: 0, marginTop: 0, paddingVertical: 10, paddingHorizontal: 16, opacity: busy || !allowed || !selected || !form.month || !form.date || toPaise(form.amount) <= 0 ? 0.45 : 1 }]}
         disabled={busy || !allowed || !selected || !form.month || !form.date || toPaise(form.amount) <= 0} onPress={() => { void save() }}>
         <Text style={st.bt}>{busy ? 'Saving…' : 'Save'}</Text>
       </TouchableOpacity>
