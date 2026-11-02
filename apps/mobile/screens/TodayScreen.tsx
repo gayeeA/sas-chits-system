@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
+  Image,
   Linking,
   Modal,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import * as FileSystem from 'expo-file-system/legacy';
 import { ViewShotRef } from "react-native-view-shot";
 import { supabase, supabaseErrorMessage } from "../supabase";
 import {
@@ -31,9 +33,11 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState("");
   const [shareTarget, setShareTarget] = useState<any>(null);
-  const [downloadAfterPreviewMount, setDownloadAfterPreviewMount] = useState(false);
+  const [downloadTarget, setDownloadTarget] = useState<any>(null);
+  const [paperScanUri, setPaperScanUri] = useState<string | null>(null);
   const [canUpdateCheque, setCanUpdateCheque] = useState(false);
   const imageRef = useRef<ViewShotRef>(null);
+  const downloadImageRef = useRef<ViewShotRef>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,7 +85,7 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
   const downloadReceiptImage = async (r: any) => {
     setSharing(r.id);
     try {
-      const uri = await imageRef.current?.capture();
+      const uri = await downloadImageRef.current?.capture();
       if (!uri) throw new Error("Receipt image is not ready. Try again.");
       await saveReceiptImageToDevice(uri, r.receipt_no);
       setShareTarget(null);
@@ -91,15 +95,27 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
         "Could not save receipt image",
         e instanceof Error ? e.message : String(e),
       );
+    } finally {
+      setSharing("");
+      setDownloadTarget(null);
     }
-    setSharing("");
   };
 
   useEffect(() => {
-    if (!shareTarget || !downloadAfterPreviewMount) return;
-    setDownloadAfterPreviewMount(false);
-    requestAnimationFrame(() => requestAnimationFrame(() => { void downloadReceiptImage(shareTarget); }));
-  }, [shareTarget, downloadAfterPreviewMount]);
+    if (!downloadTarget) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => { void downloadReceiptImage(downloadTarget); }));
+  }, [downloadTarget]);
+
+  useEffect(() => {
+    let active = true;
+    setPaperScanUri(null);
+    const path = shareTarget?.receipt_scan_attachments?.[0]?.object_path;
+    if (!path) return;
+    void supabase.storage.from('receipt-scans').createSignedUrl(path, 60).then(({ data, error }) => {
+      if (active && !error) setPaperScanUri(data?.signedUrl ?? null);
+    });
+    return () => { active = false; };
+  }, [shareTarget]);
 
   const shareReceiptImage = async () => {
     if (!shareTarget) return;
@@ -107,7 +123,13 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
     try {
       const uri = await imageRef.current?.capture();
       if (!uri) throw new Error("Receipt image is not ready. Try again.");
-      const directWhatsAppShare = await shareReceiptImageToWhatsApp(uri, shareTarget, shareTarget.memberships?.customers?.phone);
+      const attachments = [uri];
+      if (paperScanUri) {
+        const localPaperScan = `${FileSystem.cacheDirectory}paper-receipt-${shareTarget.receipt_no}.jpg`;
+        const downloaded = await FileSystem.downloadAsync(paperScanUri, localPaperScan);
+        attachments.push(downloaded.uri);
+      }
+      const directWhatsAppShare = await shareReceiptImageToWhatsApp(attachments, shareTarget, shareTarget.memberships?.customers?.phone);
       setShareTarget(null);
       Alert.alert(
         directWhatsAppShare ? "Receipt ready in WhatsApp" : "Receipt image shared",
@@ -286,7 +308,7 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
                 <TouchableOpacity
                   style={[st.smallBtn, { backgroundColor: "#f0f0f0" }]}
                   disabled={sharing === r.id}
-                  onPress={() => { setDownloadAfterPreviewMount(true); setShareTarget(r); }}
+                  onPress={() => setDownloadTarget(r)}
                 >
                   <Text>{sharing === r.id ? "Saving…" : "Receipt ⬇️"}</Text>
                 </TouchableOpacity>
@@ -328,7 +350,7 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
             </View>
             <TouchableOpacity
               style={[st.btn, { backgroundColor: "#25D366" }]}
-              disabled={sharing === shareTarget?.id}
+              disabled={sharing === shareTarget?.id || (!!shareTarget?.receipt_scan_attachments?.length && !paperScanUri)}
               onPress={() => {
                 void shareReceiptImage();
               }}
@@ -336,16 +358,7 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
               <Text style={st.bt}>
                 {sharing === shareTarget?.id
                   ? "Preparing image…"
-                  : "💬 Open member’s Chat"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[st.btn, { backgroundColor: "#2B1A6B", marginTop: 8 }]}
-              disabled={sharing === shareTarget?.id}
-              onPress={() => { if (shareTarget) void downloadReceiptImage(shareTarget); }}
-            >
-              <Text style={st.bt}>
-                {sharing === shareTarget?.id ? "Saving…" : "Receipt ⬇️"}
+                  : !!shareTarget?.receipt_scan_attachments?.length && !paperScanUri ? "Loading paper photo…" : "💬 Open member’s Chat"}
               </Text>
             </TouchableOpacity>
             <ScrollView
@@ -356,10 +369,14 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
               {shareTarget && (
                 <ReceiptShareCard ref={imageRef} receipt={shareTarget} />
               )}
+              {paperScanUri && <><Text style={st.lb}>Original paper receipt photo (also attached in WhatsApp)</Text><Image source={{ uri: paperScanUri }} style={{ width: '100%', height: 180 }} resizeMode="contain" /></>}
             </ScrollView>
           </View>
         </View>
       </Modal>
+      {downloadTarget && <View pointerEvents="none" style={{ position: 'absolute', left: -10000, top: 0 }}>
+        <ReceiptShareCard ref={downloadImageRef} receipt={downloadTarget} />
+      </View>}
     </View>
   );
 }

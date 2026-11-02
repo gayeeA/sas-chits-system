@@ -3,12 +3,12 @@ import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as MediaLibrary from 'expo-media-library/legacy'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Platform } from 'react-native'
-import Share, { ShareSingleOptions } from 'react-native-share'
+import { Platform, TurboModuleRegistry } from 'react-native'
+import type { ShareSingleOptions } from 'react-native-share'
 import { phoneDigits, receiptHtml, receiptWhatsAppText } from './chit'
 import { LOGO } from './logoData'
 
-export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series)), payment_allocations(id,amount,allocation_type,installments(month_label))'
+export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series)), payment_allocations(id,amount,allocation_type,installments(month_label)), receipt_scan_attachments(id,object_path)'
 export const receiptImageSavedLocation = () => Platform.OS === 'android' ? 'your selected folder (usually Downloads)' : 'Photos'
 
 /** Render the company-format receipt to PDF and open the share sheet (Chat, print, save). */
@@ -51,23 +51,36 @@ export async function saveReceiptImageToDevice(uri: string, receiptNo?: string |
   await MediaLibrary.saveToLibraryAsync(uri)
 }
 
-export async function shareReceiptImageToWhatsApp(uri: string, receipt: any, phone?: string | null): Promise<boolean> {
+export async function shareReceiptImageToWhatsApp(uris: string[], receipt: any, phone?: string | null): Promise<boolean> {
   const number = phoneDigits(phone)
   if (!number) throw new Error('This member has no valid phone number saved.')
 
   if (Platform.OS === 'android') {
+    // Expo Go does not include RNShare's native module. Keep the app usable there
+    // with the platform share sheet; installed builds use direct WhatsApp sharing.
+    if (!TurboModuleRegistry.get('RNShare')) {
+      await Sharing.shareAsync(uris[0], { mimeType: 'image/png', dialogTitle: `Receipt ${receipt?.receipt_no} image` })
+      return false
+    }
+    let Share: typeof import('react-native-share').default
+    try {
+      Share = require('react-native-share').default
+    } catch {
+      await Sharing.shareAsync(uris[0], { mimeType: 'image/png', dialogTitle: `Receipt ${receipt?.receipt_no} image` })
+      return false
+    }
     const { isInstalled } = await Share.isPackageInstalled('com.whatsapp')
     if (!isInstalled) throw new Error('WhatsApp is not installed on this phone.')
     await Share.shareSingle({
       social: Share.Social.WHATSAPP,
       whatsAppNumber: number,
-      url: uri,
+      urls: uris,
       type: 'image/png',
       message: receiptWhatsAppText(receipt),
     } as ShareSingleOptions & { whatsAppNumber: string })
     return true
   }
 
-  await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: `Receipt ${receipt?.receipt_no} image` })
+  await Sharing.shareAsync(uris[0], { mimeType: 'image/png', UTI: 'public.png', dialogTitle: `Receipt ${receipt?.receipt_no} image` })
   return false
 }

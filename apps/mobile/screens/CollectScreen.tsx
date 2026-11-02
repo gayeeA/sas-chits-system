@@ -82,7 +82,7 @@ export default function CollectScreen({ navigation, route }: ScreenProps<'Collec
     try {
       const uri = await imageRef.current?.capture()
       if (!uri) throw new Error('Receipt image is not ready. Try again.')
-      const directWhatsAppShare = await shareReceiptImageToWhatsApp(uri, r, due.phone)
+      const directWhatsAppShare = await shareReceiptImageToWhatsApp([uri], r, due.phone)
       Alert.alert(
         directWhatsAppShare ? 'Receipt ready in WhatsApp' : 'Receipt image shared',
         directWhatsAppShare ? 'The receipt image and message are prepared for the member. Review them and tap Send in WhatsApp.' : 'Choose WhatsApp from the share options, select the member, then tap Send.',

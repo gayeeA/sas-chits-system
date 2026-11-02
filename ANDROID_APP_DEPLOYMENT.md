@@ -63,7 +63,7 @@ Make the code change, then repeat the build command above and copy the new APK t
 
 If the build fails, check that the two `EXPO_PUBLIC_SUPABASE_*` variables exist in EAS's **preview** environment, then review the build log on the EAS build page. Local Expo Go and the installed APK are separate: use the APK to check native device features such as saving receipt images through Android's folder picker.
 
-Receipt Chat now hands the actual preview PNG and its caption to WhatsApp for the member's saved number. It does not just open a text-only `wa.me` link or save a separate image first. This uses the native `react-native-share` module, so install a newly built APK to use the change; Expo Go does not contain this added native module. WhatsApp opens the prepared receipt for review, and the user still taps **Send**.
+Receipt Chat now hands the actual preview PNG and its caption to WhatsApp for the member's saved number. It does not just open a text-only `wa.me` link or save a separate image first. This uses the native `react-native-share` module, so install a newly built APK to use direct-to-member sharing; Expo Go does not contain this added native module and falls back to its regular image share sheet. WhatsApp opens the prepared receipt for review, and the user still taps **Send**.
 
 ## New updates and installations
 
