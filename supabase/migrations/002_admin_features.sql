@@ -532,3 +532,5 @@ revoke all on function record_auction_full(uuid,text,uuid,bigint,bigint,date,big
 grant execute on function record_auction_full(uuid,text,uuid,bigint,bigint,date,bigint,bigint,jsonb,text) to authenticated;
 revoke all on function generate_installments_for_group(uuid,text,uuid) from public;
 grant execute on function dashboard_summary(text) to authenticated;
+
+notify pgrst, 'reload schema';

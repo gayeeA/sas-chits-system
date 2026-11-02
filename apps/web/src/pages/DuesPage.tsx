@@ -21,7 +21,7 @@ export default function DuesPage() {
 
   const q = search.trim().toLowerCase()
   const matchCommon = (r: any) => (!groupId || r.group_id === groupId) &&
-    (!q || `${r.name ?? r.member_name} ${r.member_code} ${r.phone ?? ''}`.toLowerCase().includes(q))
+    (!q || `${r.name ?? r.member_name} ${r.member_code} ${r.phone ?? ''} ${r.series ?? ''} #${r.ticket_no ?? ''} ${r.ticket_no ?? ''}`.toLowerCase().includes(q))
 
   const memberRows = (tickets.data ?? []).filter(t => matchCommon(t) && t.total_outstanding > 0 && (
     status === 'unpaid' ||

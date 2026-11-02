@@ -20,8 +20,8 @@ export default function LoginPage() {
   }
 
   return <form className="card login" onSubmit={signIn}>
-    <img src="/logo.jpg" width={80} alt="Sri Ande Sivaiah Chits logo" />
-    <h2>Sri Ande Sivaiah Chits</h2>
+    <img src="/logo.jpg" width={80} alt="Sri AndeSivaiah Chits logo" />
+    <h2>Sri AndeSivaiah Chits</h2>
     {!supabaseConfigured && <p className="er" role="alert">
       Configure <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>apps/web/.env</code>, then restart the dev server.
     </p>}

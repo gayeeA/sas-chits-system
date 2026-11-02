@@ -1,5 +1,5 @@
 // Single source of truth for money math + receipt layout. Copied into web and mobile by `npm run sync`.
-export const COMPANY = { name: 'M/s. SRI ANDE SIVAIAH CHITS PRIVATE LIMITED', te: 'శ్రీ అందె శివయ్య చిట్స్ ప్రై.లి.',
+export const COMPANY = { name: 'M/s. SRI ANDESIVAIAH CHITS PRIVATE LIMITED', te: 'శ్రీ అందె శివయ్య చిట్స్ ప్రై.లి.',
   addr: 'Regd. Office: D.No.18-8-22/9E, Madhura Nagar, TIRUPATI - 517501', reg: 'U65990AP2018PTC107905',
   gstin: '37ABACS0039D1ZS', cell: '93973 03446, 97030 79189', manager: 'A. Sivaiah' }
 
@@ -147,10 +147,79 @@ export const phoneDigits = (phone?: string | null) => {
 }
 export const whatsappLink = (phone: string | null | undefined, text: string) =>
   `https://wa.me/${phoneDigits(phone)}?text=${encodeURIComponent(text)}`
-export const reminderText = ({ name, amount, series, business = 'Sri Ande Sivaiah Chits' }: {
+
+export const reminderText = ({ name, amount, series, business = 'Sri AndeSivaiah Chits' }: {
   name: string; amount: number; series?: string; business?: string
 }) => `Namaste ${name} garu, this is a gentle reminder that ${rupees(amount)} is pending${series ? ` for chit ${series}` : ''}. ` +
   `Please pay at the earliest. Thank you. - ${business}`
+
+export const reminderTextTelugu = ({ name, amount, series, business = COMPANY.te }: {
+  name: string; amount: number; series?: string; business?: string
+}) => `నమస్తే ${name} గారు, ${business} నుండి విజ్ఞప్తి. ${series ? `చిట్ ${series} కు సంబంధించి ` : ''}మీరు చెల్లించవలసిన బాకీ ${rupees(amount)}. ` +
+  `దయచేసి త్వరగా చెల్లించగలరు. ధన్యవాదాలు.`
+
+export const receiptWhatsAppText = (r: any, business = 'Sri AndeSivaiah Chits') => {
+  const name = r.memberships?.customers?.name || r.name || 'Member'
+  const amt = rupees(r.total)
+  const rcNo = r.receipt_no
+  const date = formatDate(r.receipt_date)
+  const series = r.memberships?.chit_groups?.series || r.series || ''
+  const tkt = r.memberships?.ticket_no || r.ticket_no || ''
+  const month = monthName(r.month_label)
+  const mode = r.mode || 'Cash'
+  const bal = r.balance_after != null ? rupees(r.balance_after) : null
+
+  return `*${business}* (Tirupati)\n` +
+    `*PAYMENT RECEIPT*\n` +
+    `━━━━━━━━━━━━━━━━━━━\n` +
+    `Dear ${name} garu,\n` +
+    `Received with thanks:\n\n` +
+    `• *Amount:* ${amt}\n` +
+    `• *Receipt No:* ${rcNo}\n` +
+    `• *Date:* ${date}\n` +
+    (series ? `• *Chit / Ticket:* ${series} #${tkt}\n` : '') +
+    (month && month !== '—' ? `• *Month:* ${month}\n` : '') +
+    `• *Payment Mode:* ${mode}\n` +
+    (bal ? `• *Balance Outstanding:* ${bal}\n` : '') +
+    `━━━━━━━━━━━━━━━━━━━\n` +
+    `Thank you for your payment.\n` +
+    `Helpline: ${COMPANY.cell}`
+}
+
+export const memberLedgerWhatsAppText = ({
+  name,
+  memberCode,
+  totalPaid,
+  totalOutstanding,
+  tickets = [],
+  business = 'Sri AndeSivaiah Chits'
+}: {
+  name: string
+  memberCode?: string
+  totalPaid: number
+  totalOutstanding: number
+  tickets?: Array<{ series: string; ticket_no: number; total_outstanding: number }>
+  business?: string
+}) => {
+  let text = `*${business}* (Tirupati)\n` +
+    `*MEMBER STATEMENT OF ACCOUNT*\n` +
+    `━━━━━━━━━━━━━━━━━━━\n` +
+    `Member: *${name}* (${memberCode || '—'})\n` +
+    `Date: ${formatDate(todayISO())}\n\n` +
+    `• *Total Paid:* ${rupees(totalPaid)}\n` +
+    `• *Current Outstanding:* ${rupees(totalOutstanding)}\n`
+
+  if (tickets.length > 0) {
+    text += `\n*Chit Tickets:*\n`
+    for (const t of tickets) {
+      text += `  - ${t.series} #${t.ticket_no}: ${t.total_outstanding ? rupees(t.total_outstanding) + ' due' : 'Up to date (Paid)'}\n`
+    }
+  }
+
+  text += `━━━━━━━━━━━━━━━━━━━\n` +
+    `For any clarifications, call: ${COMPANY.cell}`
+  return text
+}
 
 const ones = 'One Two Three Four Five Six Seven Eight Nine Ten Eleven Twelve Thirteen Fourteen Fifteen Sixteen Seventeen Eighteen Nineteen'.split(' ')
 const tens = ',,Twenty,Thirty,Forty,Fifty,Sixty,Seventy,Eighty,Ninety'.split(',')

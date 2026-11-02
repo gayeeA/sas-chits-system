@@ -8,7 +8,8 @@ import { BACKUP_KEY } from './DashboardPage'
 
 type Tab = 'account' | 'users' | 'audit' | 'backup'
 const BACKUP_TABLES = ['customers', 'chit_groups', 'memberships', 'auctions', 'auction_bids', 'installments', 'receipts', 'payment_allocations',
-  'payouts', 'business_transactions', 'profiles', 'audit_log']
+  'payouts', 'business_transactions', 'profiles', 'audit_log', 'legacy_receipt_sources', 'member_followups',
+  'cheque_tracking', 'payment_requests', 'receipt_scan_attachments']
 
 export default function SettingsPage() {
   const auth = useAuth()

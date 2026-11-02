@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 
-export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series,name)), payment_allocations(id,amount,allocation_type,installments(month_label))'
+export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series,name)), payment_allocations(id,amount,allocation_type,installments(month_label)), legacy_receipt_sources(paper_receipt_no,paper_book,source_file), cheque_tracking(clearance_status,notes,updated_at), receipt_scan_attachments(id,object_path,recognized_text,created_at)'
 
 /** Throws the Supabase error so callers can use try/catch or useAsync. */
 export function must<T>(result: { data: T; error: { message: string } | null }): T {
-  if (result.error) throw new Error(result.error.message)
+  if (result.error) throw new Error(errorText(result.error))
   return result.data
 }
 
@@ -85,7 +85,14 @@ export function useAuth() {
 export const ROLE_LABEL: Record<string, string> = { owner: 'Owner', manager: 'Manager', clerk: 'Staff', agent: 'Staff (field)' }
 
 export const errorText = (e: unknown) => {
-  const message = e instanceof Error ? e.message : String(e)
+  const message = e instanceof Error
+    ? e.message
+    : typeof e === 'object' && e !== null && 'message' in e && typeof e.message === 'string'
+      ? e.message
+      : String(e)
+  if (/PGRST202|PGRST205|schema cache|could not find (?:the )?(?:table|view|function|relation)/i.test(message)) {
+    return 'The Supabase database is missing objects required by this app. Run migrations 002_admin_features.sql through 007_receipt_scans.sql in order after the base schema. Do not rerun schema.sql on a database with financial records.'
+  }
   if (/row-level security/i.test(message)) return 'You do not have permission for this action. Ask the owner.'
   if (/violates foreign key/i.test(message)) return 'This record is linked to other records and cannot be removed.'
   return message

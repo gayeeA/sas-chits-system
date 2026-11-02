@@ -1,1 +1,1 @@
-{"extends":"expo/tsconfig.base","compilerOptions":{"strict":false}}
+{"extends":"expo/tsconfig.base","compilerOptions":{"strict":false,"paths":{"react-native-view-shot":["./types/react-native-view-shot.d.ts"]}}}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import { fetchAll } from '../lib/data'
+import { errorText, fetchAll } from '../lib/data'
 
 export function useQueryRows(table: string, select = '*', order?: string) {
   const [rows, setRows] = useState<any[]>([])
@@ -15,7 +15,7 @@ export function useQueryRows(table: string, select = '*', order?: string) {
       setRows(data)
       setError('')
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorText(e))
     }
   }
   useEffect(() => { void load() }, [table, select, order])

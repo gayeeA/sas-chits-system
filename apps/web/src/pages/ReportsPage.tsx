@@ -82,7 +82,7 @@ export default function ReportsPage() {
       {type === 'defaulters' && <label className="inline">Overdue months ≥<input type="number" min={1} value={minOverdue} onChange={e => setMinOverdue(e.target.value)} style={{ width: 70 }} /></label>}
     </div>
     <section className="card report">
-      <div className="print-only"><b>Sri Ande Sivaiah Chits Pvt. Ltd.</b></div>
+      <div className="print-only"><b>Sri AndeSivaiah Chits Pvt. Ltd.</b></div>
       <h2>{info[1]}{mode ? ` · ${mode}` : ''}{groupName ? ` · ${groupName}` : ''}</h2>
       <p className="muted small">{info[2]} {usesDates && `Period: ${formatDate(from)} to ${formatDate(to)}.`}{type === 'group_collection' && ` Month: ${monthName(month)}.`} Generated {formatDate(todayISO())}.</p>
       <ErrorMessage>{error}</ErrorMessage>

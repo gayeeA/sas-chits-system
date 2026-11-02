@@ -17,7 +17,7 @@ export default function LoginScreen() {
 
   return <View style={[st.page, { justifyContent: 'center' }]}>
     <Image source={require('../assets/logo.jpg')} style={{ width: 96, height: 86, alignSelf: 'center', borderRadius: 43, marginBottom: 12 }} />
-    <Text style={[st.title, { textAlign: 'center', color: '#2B1A6B' }]}>Sri Ande Sivaiah Chits</Text>
+    <Text style={[st.title, { textAlign: 'center', color: '#2B1A6B' }]}>Sri AndeSivaiah Chits</Text>
     <TextInput style={st.in} placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
     <TextInput style={st.in} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
     <TouchableOpacity style={st.btn} disabled={busy} onPress={signIn}><Text style={st.bt}>{busy ? 'Signing in…' : 'Sign in'}</Text></TouchableOpacity>

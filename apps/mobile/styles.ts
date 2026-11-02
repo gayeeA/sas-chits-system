@@ -15,6 +15,8 @@ export const styles = StyleSheet.create({
   chip: { flex: 1, padding: 10, borderRadius: 20, borderWidth: 1, borderColor: '#ccc', alignItems: 'center', marginVertical: 8 },
   chipOn: { backgroundColor: '#2B1A6B', borderColor: '#2B1A6B' },
   smallBtn: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fff', marginRight: 6 },
+  homeBtn: { alignSelf: 'flex-start', marginBottom: 8, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1, borderColor: '#E10F17', backgroundColor: '#E10F17' },
+  homeBtnText: { color: '#fff', fontWeight: '700' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   tile: { width: '48.5%', backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#e5e5e5', borderLeftWidth: 4 },
   tileValue: { fontSize: 20, fontWeight: '700', marginVertical: 2 },

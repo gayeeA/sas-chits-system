@@ -84,12 +84,12 @@ export function PeriodPicker({ from, to, onChange }: { from: string; to: string;
   </>
 }
 
-/** Call + WhatsApp buttons for follow-up. */
+/** Call + Chat buttons for follow-up. */
 export function ContactButtons({ phone, message }: { phone?: string | null; message: string }) {
   if (!phoneDigits(phone)) return <span className="muted">No phone</span>
   return <span className="contact">
     <a className="btn small" href={`tel:+${phoneDigits(phone)}`}>Call</a>
-    <a className="btn small wa" href={whatsappLink(phone, message)} target="_blank" rel="noreferrer">WhatsApp</a>
+    <a className="btn small wa" href={whatsappLink(phone, message)} target="_blank" rel="noreferrer">Chat</a>
   </span>
 }
 

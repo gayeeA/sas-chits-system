@@ -9,6 +9,8 @@ import DuesScreen from './screens/DuesScreen'
 import HomeScreen from './screens/HomeScreen'
 import TodayScreen from './screens/TodayScreen'
 import LoginScreen from './screens/LoginScreen'
+import LegacyReceiptScreen from './screens/LegacyReceiptScreen'
+import FollowupsScreen from './screens/FollowupsScreen'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
@@ -38,6 +40,8 @@ export default function App() {
           <Stack.Screen name="Dues" component={DuesScreen} />
           <Stack.Screen name="Collect" component={CollectScreen} />
           <Stack.Screen name="Today" component={TodayScreen} />
+          <Stack.Screen name="LegacyReceipt" component={LegacyReceiptScreen} />
+          <Stack.Screen name="Followups" component={FollowupsScreen} />
         </>
         : <Stack.Screen name="Login" component={LoginScreen} />}
     </Stack.Navigator>

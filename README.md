@@ -1,6 +1,6 @@
-# Sri Ande Sivaiah Chits: collection & receipt system
+# Sri AndeSivaiah Chits: collection & receipt system
 
-This is a Khata-book-style collection and ledger system for Sri Ande Sivaiah Chits Pvt. Ltd. The website is for the office computer and the Expo app is for the phone. Both clients use the same Supabase project, so customer, group, installment, payment and receipt data are shared.
+This is a Khata-book-style collection and ledger system for Sri AndeSivaiah Chits Pvt. Ltd. The website is for the office computer and the Expo app is for the phone. Both clients use the same Supabase project, so customer, group, installment, payment and receipt data are shared.
 
 The current foundation is React + Vite web, Expo React Native mobile, shared TypeScript accounting helpers, and Supabase PostgreSQL/Auth/RLS. The company receipt layout and visiting-card colors/logo are retained. Use a Supabase free project for a pilot only; check provider limits and maintain backups before relying on it for business records.
 
@@ -13,8 +13,8 @@ This is an office tool for the chit-fund owner and staff only. Members (customer
 | `/` | Introduction | Public page with a login button |
 | `/login` | Sign in | Supabase email/password sign-in |
 | `/dashboard` | Dashboard | This month's expected/collected/pending/overdue, today's collection by mode, this month's auctions, upcoming dates, alerts, recent payments |
-| `/collect` | Record Payment | Find a member/ticket, see previous + current + total dues, record Cash / UPI / Bank Transfer / Cheque, print or WhatsApp the receipt; today's collection summary |
-| `/dues` | Dues & Follow-up | Member-wise outstanding and month-wise status, filters, Call and WhatsApp reminder buttons, CSV export |
+| `/collect` | Record Payment | Find a member/ticket, see previous + current + total dues, record Cash / UPI / Bank Transfer / Cheque, print or share receipt images; today's collection summary |
+| `/dues` | Dues & Follow-up | Member-wise outstanding and month-wise status, filters, Call and Chat reminder buttons, CSV export |
 | `/groups`, `/groups/:id` | Chit Groups | Create/edit groups and their rules, tickets, month-by-month ledger, auction history |
 | `/members`, `/members/:id` | Members | Add/edit/deactivate members (ID, phone, address, PAN, ID reference, nominee), **bulk import from Excel/CSV** (template and row-by-row check), assign to groups, instalment/payment/lift history |
 | `/auctions` | Auctions / Lifts | Record bids, winner, discount, commission and dividend with the calculation shown step by step |
@@ -26,7 +26,7 @@ This is an office tool for the chit-fund owner and staff only. Members (customer
 
 The website works on a phone too (bottom quick bar). On Android Chrome use **⋮ → Add to Home screen** to open it like an app.
 
-The Expo phone app (field collection) has: Home summary, Dues list with Call/WhatsApp reminder, Collect (4 modes, PDF receipt share), and Today's collection (cash-in-hand by mode, re-share receipts).
+The Expo phone app (field collection) has: Home summary, Dues list with Call/Chat reminder and shared follow-up notes, Collect (4 modes, receipt image and PDF sharing), and Today's collection (cash-in-hand by mode, re-share receipts). Owners and managers can also enter a paper receipt from the phone.
 
 ### Roles
 
@@ -43,13 +43,15 @@ Permissions are enforced in the database (row-level security), not only hidden i
 ### 1. Supabase PostgreSQL project
 
 1. Create a Supabase project and copy its **Project URL** and **anon/public key** from Project Settings > API.
-2. In the Supabase Dashboard, open **SQL Editor**, paste `supabase/schema.sql`, and run it on a **fresh project**.
-3. In Authentication settings, disable public sign-up. Create the owner's account first; the database's signup trigger makes the first profile the owner.
-4. Keep the URL and anon key for both apps. Never put a service-role key in either client.
+2. In the Supabase Dashboard, open **SQL Editor**. On a fresh project, paste `supabase/schema.sql` and click **Run**.
+3. **Required:** In a new SQL Editor query, paste all of `supabase/migrations/002_admin_features.sql` and click **Run**. The website and mobile app use objects added by this migration, including `member_outstanding`, `installment_status`, `dashboard_summary`, payouts, expenses, and audit logs. If the base schema was installed earlier, run this migration now. If financial records already exist, make a database backup first.
+4. Run `supabase/migrations/003_legacy_receipts.sql` after migration 002. It adds protected paper-receipt source details and the historical-payment RPC used by the website and phone.
+5. Run `supabase/migrations/004_member_followups.sql` after migration 003. It adds the shared call/visit/reminder log used by the phone and website.
+6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, and `007_receipt_scans.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, and a private receipt-photo bucket with metadata.
+7. In Authentication settings, disable public sign-up. Create the owner's account first; the database's signup trigger makes the first profile the owner.
+8. Keep the URL and anon key for both apps. Never put a service-role key in either client.
 
-The schema is a fresh-install script, not a migration. Do not run it again on a project that already contains business or financial records.
-
-5. **Then run the migration** `supabase/migrations/002_admin_features.sql` once in the SQL Editor (new query → paste → Run). It only adds tables/columns/functions and keeps existing records. **Download a backup first**: run the new website (`npm run dev`), sign in as owner, Settings → Backup (tables the migration hasn't created yet are skipped). It is safe if run twice by mistake.
+The schema is a fresh-install script, not a migration. Do not run it again on a project that already contains business or financial records. Migrations 002–007 are additive; back up an existing database in Supabase before applying them.
 
    The migration also fixes a bug in `schema.sql`: cancelling a receipt always failed with "Receipts are immutable", because the generated `total` column is not available inside the guard trigger.
 
@@ -117,13 +119,13 @@ Install **Expo Go** on the phone and scan the Expo QR code. To start Expo for an
 npm run android
 ```
 
-This project currently uses **Expo SDK 54**. Expo Go from Google Play may be for a newer SDK and will reject this project. On Android, install the SDK 54-compatible Expo Go from the [official Expo download page](https://expo.dev/go?sdkVersion=54&platform=android&device=true), then restart the dev server with a cleared cache:
+This project uses **Expo SDK 57** to match the current Expo Go version. If Expo Go still reports an SDK mismatch, stop any old Expo server with `Ctrl+C`, ensure you are in `apps\mobile`, and restart with a cleared cache:
 
 ```powershell
 npx expo start --clear
 ```
 
-If you prefer to keep the latest Expo Go from Google Play, the project must instead be upgraded to the matching Expo SDK and its compatible React Native/native-module versions.
+Then scan the newly generated QR code. Make sure the QR code is from this mobile project, not an older server or a different project folder.
 
 To create an Android preview APK with EAS, configure/login to Expo first, then run:
 
@@ -159,7 +161,7 @@ Run `supabase/schema.sql` in the Supabase Dashboard's **SQL Editor** (or manage 
 - **Database/login:** Supabase free plan. It pauses after 7 days without use (open the dashboard and click Restore) and has no downloadable daily backups — download a backup from Settings at least weekly (the dashboard reminds the owner).
 - **Website:** Vercel or Netlify free plan (`apps/web`, build `npm run build`, output `dist`, add the two `VITE_SUPABASE_*` variables).
 - **Phone app:** Expo Go (free) for daily use, or a free EAS preview APK build.
-- **Reminders:** WhatsApp and Call buttons use normal `wa.me` / `tel:` links from the owner's phone — no paid SMS/WhatsApp API.
+- **Reminders:** Chat and Call buttons use normal `wa.me` / `tel:` links from the owner's phone — no paid SMS/chat API.
 
 ## Rules that must be confirmed per group
 
@@ -175,7 +177,9 @@ Nothing about the chit agreement is assumed; each group stores its own rules and
 
 From `apps/web`: `npm run typecheck`, `npm test`, and `npm run build`. From `apps/mobile`: `npm run typecheck`. Apply/test the SQL against a fresh Supabase project, reconcile against the company's Excel, and test printing/sharing on the actual phone before using for live collections.
 
-Not yet built: importing old *payment history* from Excel (member details can already be imported), automated SMS/WhatsApp sending, cheque clearance tracking, assigning members to individual collection staff, and offline mode for the phone app.
+Historical payment import from Excel is available under Receipts for owners/managers. Map the spreadsheet columns and review the preview before recording rows. Each imported payment updates the same ledger as a current payment and retains the paper receipt number/book as source metadata. Historical payments require an existing membership and installment month; import old groups/auctions and generate their installments before importing payments. Failed rows are reported; successful rows remain saved and must not be imported again.
+
+Owners/managers can enter an already-written paper receipt from Receipts on the website or from the phone app. Enter the original date, installment month, amount, method, and optional paper receipt number/book. The database rejects a repeated paper receipt number within the same book. The generated system receipt number remains separate. The web app can OCR receipt photos to suggest text, and the phone app can attach a private photo; always verify OCR against the source because handwritten text may be recognized poorly. Incoming cheque clearance is tracked; a bounced cheque cancels and reverses its receipt. Managers assign tickets to collectors; staff see assigned tickets in Dues. The phone caches up to 250 assigned tickets securely and can queue up to 20 payments while offline. Queued payments receive a system receipt only after the server syncs them.
 
 ### Importing members from Excel
 

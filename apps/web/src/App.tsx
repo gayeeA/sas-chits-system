@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { supabase, supabaseConfigured } from './supabase'
-import { rupees, receiptHtml } from './chit'
+import { rupees, receiptHtml, receiptWhatsAppText } from './chit'
+import { shareElementAsImage } from './lib/shareImage'
 import { Auth, AuthContext, Profile, ROLE_LABEL, useAuth } from './lib/data'
 import AuctionsPage from './pages/AuctionsPage'
 import CollectPage from './pages/CollectPage'
@@ -97,13 +98,13 @@ function AuthProvider({ session, children }: { session: any; children: React.Rea
 function LandingPage() {
   return <div className="landing">
     <header className="landing-header">
-      <img src="/logo.jpg" alt="Sri Ande Sivaiah Chits logo" />
-      <b>Sri Ande Sivaiah Chits Pvt. Ltd.</b>
+      <img src="/logo.jpg" alt="Sri AndeSivaiah Chits logo" />
+      <b>Sri AndeSivaiah Chits Pvt. Ltd.</b>
       <Link className="landing-login" to="/login">Login</Link>
     </header>
     <main className="landing-main">
       <section className="landing-hero">
-        <p className="landing-eyebrow">Sri Ande Sivaiah Chits Pvt. Ltd. · Tirupati</p>
+        <p className="landing-eyebrow">Sri AndeSivaiah Chits Pvt. Ltd. · Tirupati</p>
         <h1>Collections and records, together.</h1>
         <p className="landing-intro">
           The office system for running every chit group: members, monthly collections,
@@ -139,6 +140,8 @@ const QUICK_NAV = ['/dashboard', '/collect', '/dues', '/members']
 
 function AppLayout() {
   const [receipt, setReceipt] = useState<Receipt | null>(null)
+  const [shareError, setShareError] = useState('')
+  const receiptImageRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
@@ -154,11 +157,18 @@ function AppLayout() {
   }
 
   const phone = (receipt?.memberships?.customers?.phone || '').replace(/\D/g, '')
+  const shareReceiptImage = async () => {
+    if (!receiptImageRef.current || !receipt) return
+    setShareError('')
+    try {
+      await shareElementAsImage({ element: receiptImageRef.current, fileName: `receipt-${receipt.receipt_no}`, title: `Receipt ${receipt.receipt_no}`, phone, message: receiptWhatsAppText(receipt) })
+    } catch (e) { if ((e as DOMException)?.name !== 'AbortError') setShareError(e instanceof Error ? e.message : String(e)) }
+  }
   return <div className="shell">
     <header className="topbar">
       <button className="menu-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>☰</button>
       <img src="/logo.jpg" alt="" />
-      <b>Sri Ande Sivaiah Chits</b>
+      <b>Sri AndeSivaiah Chits</b>
       <span className="who">{auth.displayName}{auth.profile && <small>{ROLE_LABEL[auth.profile.role]}</small>}</span>
       <button className="signout" onClick={signOut}>Sign out</button>
     </header>
@@ -178,7 +188,8 @@ function AppLayout() {
       <button onClick={() => setMenuOpen(true)}><span aria-hidden>☰</span>More</button>
     </nav>
     {receipt && <div className="modal receipt-modal" role="dialog" aria-modal="true" aria-label={`Receipt ${receipt.receipt_no}`}>
-      <div className="modal-box wide"><div dangerouslySetInnerHTML={{ __html: receiptHtml(receipt, '/logo.jpg') }} />
+      <div className="modal-box wide"><div ref={receiptImageRef} style={{ padding: 12, background: '#fff' }}><div dangerouslySetInnerHTML={{ __html: receiptHtml(receipt, '/logo.jpg') }} /></div>
+        {receipt.legacy_receipt_sources?.[0] && <p className="muted">Entered from paper receipt {receipt.legacy_receipt_sources[0].paper_receipt_no || 'without a number'}{receipt.legacy_receipt_sources[0].paper_book ? ` · ${receipt.legacy_receipt_sources[0].paper_book}` : ''}</p>}
         {receipt.payment_allocations?.length > 0 && <section className="card alloc-screen"><h3>How this payment was applied</h3>
           <table><thead><tr><th>Month</th><th>Applied to</th><th>Amount</th></tr></thead>
             <tbody>{receipt.payment_allocations.map((allocation: any, index: number) =>
@@ -187,12 +198,10 @@ function AppLayout() {
           </table>
         </section>}
         <div className="bar no-print"><button className="pri" onClick={() => window.print()}>Print / Save PDF</button>
-          {phone && <a className="btn wa" href={`https://wa.me/${phone.length === 10 ? '91' + phone : phone}?text=${encodeURIComponent(
-            `Receipt No. ${receipt.receipt_no}: received ${rupees(receipt.total)} for ${receipt.month_label} (${receipt.memberships?.chit_groups?.series}).` +
-            `${receipt.balance_after ? ` Balance pending: ${rupees(receipt.balance_after)}.` : ''} - Sri Ande Sivaiah Chits Pvt. Ltd.`)}`}
-            target="_blank" rel="noreferrer">Share on WhatsApp</a>}
+          {phone && <button className="btn wa" onClick={() => { void shareReceiptImage() }}>💬 Chat receipt image</button>}
           <button onClick={() => setReceipt(null)}>Close</button>
         </div>
+        {shareError && <p role="alert" className="error no-print">{shareError}</p>}
       </div>
     </div>}
   </div>

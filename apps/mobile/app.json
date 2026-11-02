@@ -1,3 +1,3 @@
-{"expo":{"name":"SAS Chits","slug":"sas-chits","version":"1.0.0","orientation":"portrait","icon":"./assets/icon.png",
+{"expo":{"name":"AndeSivaiah Chits","slug":"sas-chits","version":"1.0.0","orientation":"portrait","icon":"./assets/icon.png",
 "splash":{"image":"./assets/icon.png","resizeMode":"contain","backgroundColor":"#101224"},
 "android":{"package":"com.saschits.app","adaptiveIcon":{"foregroundImage":"./assets/icon.png","backgroundColor":"#101224"}},"ios":{"bundleIdentifier":"com.saschits.app"}}}

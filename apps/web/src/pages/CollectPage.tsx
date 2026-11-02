@@ -117,7 +117,11 @@ export default function CollectPage() {
         </div>
         <div className="quick-amounts">
           {ticket.current_balance > 0 && <button className="small" onClick={() => setForm({ ...form, amount: toRupees(ticket.current_balance) })}>This month {rupees(ticket.current_balance)}</button>}
+          {ticket.arrears > 0 && ticket.arrears !== ticket.total_outstanding && <button className="small" onClick={() => setForm({ ...form, amount: toRupees(ticket.arrears) })}>Arrears {rupees(ticket.arrears)}</button>}
           {ticket.total_outstanding > ticket.current_balance && <button className="small" onClick={() => setForm({ ...form, amount: toRupees(ticket.total_outstanding) })}>Full outstanding {rupees(ticket.total_outstanding)}</button>}
+          <button className="small" onClick={() => setForm({ ...form, amount: (Number(form.amount) || 0) + 500 })}>+₹500</button>
+          <button className="small" onClick={() => setForm({ ...form, amount: (Number(form.amount) || 0) + 1000 })}>+₹1,000</button>
+          <button className="small" onClick={() => setForm({ ...form, amount: (Number(form.amount) || 0) + 2000 })}>+₹2,000</button>
         </div>
 
         <div className="mode-picker" role="radiogroup" aria-label="Payment method">{PAYMENT_MODES.map(mode =>

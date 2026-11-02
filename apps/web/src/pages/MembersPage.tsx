@@ -32,7 +32,7 @@ export default function MembersPage() {
   const rows = (data?.members ?? []).filter(m =>
     (!status || m.status === status) &&
     (!groupId || ticketsOf(m.id).some(t => t.group_id === groupId)) &&
-    (!q || `${m.name} ${m.member_code} ${m.phone ?? ''} ${m.alt_phone ?? ''}`.toLowerCase().includes(q)))
+    (!q || `${m.name} ${m.member_code} ${m.phone ?? ''} ${m.alt_phone ?? ''} ${ticketsOf(m.id).map(t => `${t.series} #${t.ticket_no} ${t.ticket_no}`).join(' ')}`.toLowerCase().includes(q)))
   const outstandingOf = (id: string) => ticketsOf(id).reduce((sum, t) => sum + Number(t.total_outstanding), 0)
 
   return <>
