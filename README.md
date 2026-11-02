@@ -119,7 +119,7 @@ Install **Expo Go** on the phone and scan the Expo QR code. To start Expo for an
 npm run android
 ```
 
-This project uses **Expo SDK 57** to match the current Expo Go version. If Expo Go still reports an SDK mismatch, stop any old Expo server with `Ctrl+C`, ensure you are in `apps\mobile`, and restart with a cleared cache:
+This project uses **Expo SDK 58**. If Expo Go reports an SDK mismatch, stop any old Expo server with `Ctrl+C`, ensure you are in `apps\mobile`, and restart with a cleared cache:
 
 ```powershell
 npx expo start --clear
@@ -130,8 +130,10 @@ Then scan the newly generated QR code. Make sure the QR code is from this mobile
 To create an Android preview APK with EAS, configure/login to Expo first, then run:
 
 ```powershell
-npx eas build -p android --profile preview
+npx eas-cli@latest build --platform android --profile preview
 ```
+
+For a private installable APK that you can copy from the laptop to Android phones without publishing to an app store, follow the [Android app deployment guide](./ANDROID_APP_DEPLOYMENT.md). It includes the EAS project setup and Supabase environment variables required by the build.
 
 ### 4. Sync shared TypeScript
 

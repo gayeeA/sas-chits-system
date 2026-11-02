@@ -1,3 +1,53 @@
-{"expo":{"name":"AndeSivaiah Chits","slug":"sas-chits","version":"1.0.0","orientation":"portrait","icon":"./assets/icon.png",
-"splash":{"image":"./assets/icon.png","resizeMode":"contain","backgroundColor":"#101224"},
-"android":{"package":"com.saschits.app","blockedPermissions":["android.permission.READ_EXTERNAL_STORAGE","android.permission.WRITE_EXTERNAL_STORAGE","android.permission.READ_MEDIA_IMAGES","android.permission.READ_MEDIA_VIDEO","android.permission.READ_MEDIA_AUDIO","android.permission.READ_MEDIA_VISUAL_USER_SELECTED"],"adaptiveIcon":{"foregroundImage":"./assets/icon.png","backgroundColor":"#101224"}},"ios":{"bundleIdentifier":"com.saschits.app"},"plugins":[["expo-media-library",{"photosPermission":"Allow AndeSivaiah Chits to save receipt images to Photos.","savePhotosPermission":"Allow AndeSivaiah Chits to save receipt images to Photos.","granularPermissions":[]}]]}}
+{
+  "expo": {
+    "name": "AndeSivaiah Chits",
+    "slug": "saschits",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#101224"
+    },
+    "android": {
+      "package": "com.saschits.app",
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#101224"
+      },
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.saschits.app"
+    },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow AndeSivaiah Chits to save receipt images to Photos.",
+          "savePhotosPermission": "Allow AndeSivaiah Chits to save receipt images to Photos.",
+          "granularPermissions": []
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "07da6a48-54cf-44f5-aebe-ce4729e85f06"
+      }
+    },
+    "owner": "gayathriandes-team"
+  }
+}
