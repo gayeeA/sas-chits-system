@@ -44,6 +44,30 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
   </div>
 }
 
+export function ConfirmModal({ title, message, confirmLabel, danger = false, busy = false, error, onConfirm, onCancel }: {
+  title: string
+  message: ReactNode
+  confirmLabel: string
+  danger?: boolean
+  busy?: boolean
+  error?: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return <Modal title={title} onClose={onCancel}>
+    <div className="form">
+      <p>{message}</p>
+      {error && <span className="er" role="alert">{error}</span>}
+      <div className="bar">
+        <button className={danger ? 'danger' : 'pri'} disabled={busy} onClick={onConfirm}>
+          {busy ? 'Please wait…' : confirmLabel}
+        </button>
+        <button disabled={busy} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  </Modal>
+}
+
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="empty">{children}</p>
 }

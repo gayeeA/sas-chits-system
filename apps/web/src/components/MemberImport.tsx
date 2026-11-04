@@ -4,7 +4,7 @@ import { todayISO } from '../chit'
 import { errorText, fetchAll, must, useAsync } from '../lib/data'
 import { downloadXlsx, readSheet } from '../lib/excel'
 import { Existing, guessMapping, IMPORT_FIELDS, ImportRow, Mapping, validateRows } from '../lib/memberImport'
-import { Badge, Empty } from './ui'
+import { Badge, ConfirmModal, Empty } from './ui'
 import { ErrorMessage } from './DataControls'
 
 const TEMPLATE_EXAMPLES = [
@@ -28,6 +28,7 @@ export default function MemberImport({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
+  const [confirmingImport, setConfirmingImport] = useState(false)
 
   const existing = useAsync<Existing>(async () => {
     const [members, groups, tickets] = await Promise.all([
@@ -62,7 +63,6 @@ export default function MemberImport({ onDone }: { onDone: () => void }) {
   }
 
   const run = async () => {
-    if (!window.confirm(`Import ${importable.length} members${importable.some(r => r.groupId) ? ` (${importable.filter(r => r.groupId).length} with group tickets)` : ''}?`)) return
     setBusy(true); setError('')
     let members = 0, tickets = 0
     try {
@@ -137,9 +137,14 @@ export default function MemberImport({ onDone }: { onDone: () => void }) {
           </tr>
         })}</tbody></table></div> : <Empty>No rows.</Empty>}
       <div className="bar">
-        <button className="pri" disabled={busy || !importable.length || !mapping.name} onClick={run}>{busy ? 'Importing…' : `Import ${importable.length} members`}</button>
+        <button className="pri" disabled={busy || !importable.length || !mapping.name} onClick={() => setConfirmingImport(true)}>{busy ? 'Importing…' : `Import ${importable.length} members`}</button>
         {!mapping.name && <span className="er">Choose which column has the member's name.</span>}
       </div>
     </>}
+    {confirmingImport && <ConfirmModal title="Confirm member import"
+      message={`Import ${importable.length} members${importable.some(r => r.groupId) ? ` (${importable.filter(r => r.groupId).length} with group tickets)` : ''}?`}
+      confirmLabel={`Import ${importable.length} members`} busy={busy} error={error}
+      onCancel={() => { if (!busy) setConfirmingImport(false) }}
+      onConfirm={() => { void run() }} />}
   </div>
 }

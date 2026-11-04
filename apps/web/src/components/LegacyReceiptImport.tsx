@@ -5,7 +5,7 @@ import { errorText, fetchAll, must, useAsync } from '../lib/data'
 import { downloadXlsx, readSheet } from '../lib/excel'
 import { parseDate } from '../lib/memberImport'
 import { ErrorMessage } from './DataControls'
-import { Badge, Empty } from './ui'
+import { Badge, ConfirmModal, Empty } from './ui'
 
 const FIELDS = [
   ['name', 'Member name', ['name', 'member name', 'customer name']],
@@ -46,6 +46,7 @@ export default function LegacyReceiptImport({ onDone }: { onDone: () => void }) 
   const [mapping, setMapping] = useState<Mapping>({})
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmingImport, setConfirmingImport] = useState(false)
   const [progress, setProgress] = useState('')
   const [result, setResult] = useState<{ saved: number; failed: Array<{ line: number; message: string }> } | null>(null)
   const tickets = useAsync<Ticket[]>(async () => {
@@ -122,7 +123,7 @@ export default function LegacyReceiptImport({ onDone }: { onDone: () => void }) 
 
   const importRows = rows.filter(r => !r.errors.length)
   const run = async () => {
-    if (!file || !window.confirm(`Record ${importRows.length} historical payment(s) from ${file.name}? Each payment will update the member ledger and appear in receipts.`)) return
+    if (!file) return
     setBusy(true); setError(''); setProgress('')
     let saved = 0; const failed: Array<{ line: number; message: string }> = []
     for (const row of importRows) {
@@ -154,7 +155,12 @@ export default function LegacyReceiptImport({ onDone }: { onDone: () => void }) 
       <h3>Match the spreadsheet columns</h3><div className="grid map-grid">{FIELDS.map(([key, label]) => <label key={key}><span>{label}</span><select value={mapping[key] ?? ''} onChange={e => setMapping({ ...mapping, [key]: e.target.value || undefined })}><option value="">— not in file —</option>{file.headers.map(h => <option key={h}>{h}</option>)}</select></label>)}</div>
       <h3>Review before import</h3><p>{importRows.length} ready · {rows.length - importRows.length} blocked · {rows.filter(r => !r.errors.length && r.warnings.length).length} need attention</p>
       {rows.length ? <div className="table-wrap import-preview"><table><thead><tr><th>Row</th><th>Member</th><th>Month</th><th>Date</th><th>Paper receipt</th><th className="r">Amount</th><th className="r">BP adj.</th><th className="r">Agent commission adj.</th><th>Check</th></tr></thead><tbody>{rows.map(r => <tr key={r.line} className={r.errors.length ? 'skip-row' : ''}><td>{r.line}</td><td>{r.membershipId ? (tickets.data?.find(t => t.id === r.membershipId)?.chit_groups.series ?? '') + ' #' + (tickets.data?.find(t => t.id === r.membershipId)?.ticket_no ?? '') : '—'}</td><td>{r.data.month_label || '—'}</td><td>{r.data.receipt_date || '—'}</td><td>{r.data.paper_book ? `${r.data.paper_book} / ` : ''}{r.data.paper_receipt_no || '—'}</td><td className="r">{r.data.amount ? (r.data.amount / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) : '—'}</td><td className="r">{(r.data.bp_adjustment / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td><td className="r">{(r.data.agent_commission_adjustment / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td><td className="small">{r.errors.length ? <><Badge status="OVERDUE">Blocked</Badge> {r.errors.join(' · ')}</> : r.warnings.length ? r.warnings.join(' · ') : 'Ready'}</td></tr>)}</tbody></table></div> : <Empty>No rows.</Empty>}
-      {busy && <p>{progress}</p>}<div className="bar"><button className="pri" disabled={busy || !importRows.length || !tickets.data?.length || !installments.data} onClick={run}>{busy ? 'Importing…' : `Record ${importRows.length} payments`}</button></div>
+      {busy && <p>{progress}</p>}<div className="bar"><button className="pri" disabled={busy || !importRows.length || !tickets.data?.length || !installments.data} onClick={() => setConfirmingImport(true)}>{busy ? 'Importing…' : `Record ${importRows.length} payments`}</button></div>
     </>}
+    {confirmingImport && file && <ConfirmModal title="Confirm historical payment import"
+      message={`Record ${importRows.length} historical payment(s) from ${file.name}? Each payment will update the member ledger and appear in receipts.`}
+      confirmLabel={`Record ${importRows.length} payments`} busy={busy} error={error}
+      onCancel={() => { if (!busy) setConfirmingImport(false) }}
+      onConfirm={() => { void run() }} />}
   </div>
 }

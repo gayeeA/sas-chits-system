@@ -191,4 +191,23 @@ create policy upd_mem on public.memberships
 create policy del_mem on public.memberships
   for delete to authenticated using (public.is_owner());
 
+-- A member may have only one active ticket in a group. Withdrawn history is retained.
+do $$
+begin
+  if exists (
+    select 1
+    from public.memberships
+    where status = 'ACTIVE'
+    group by group_id, customer_id
+    having count(*) > 1
+  ) then
+    raise exception 'Cannot add active membership uniqueness: existing groups contain duplicate active member tickets. Resolve those duplicates, then rerun migration 009';
+  end if;
+end
+$$;
+
+create unique index if not exists memberships_one_active_ticket_per_member_group
+  on public.memberships(group_id, customer_id)
+  where status = 'ACTIVE';
+
 notify pgrst, 'reload schema';

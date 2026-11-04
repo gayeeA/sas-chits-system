@@ -28,7 +28,7 @@ The website works on a phone too (bottom quick bar). On Android Chrome use **⋮
 
 The Expo phone app (field collection) has: Home summary, Dues list with Call/Chat reminder and shared follow-up notes, Collect (4 modes, receipt image and PDF sharing), and Today's collection (cash-in-hand by mode, re-share receipts). Owners and managers can also enter a paper receipt from the phone. The owner can manage members, group tickets, and empty-group deletion from **Manage members & groups**.
 
-Ticket reassignment and member/group deletion are owner-only on both clients. Reassignment is allowed only before financial, auction, or follow-up history exists; members and groups with linked records must be marked inactive/withdrawn or paused/completed instead of being deleted.
+Ticket reassignment and member/group deletion are owner-only on both clients. A member can have only one active ticket per group; withdrawn tickets remain as history. Reassignment is allowed only before financial, auction, or follow-up history exists; members and groups with linked records must be marked inactive/withdrawn or paused/completed instead of being deleted.
 
 ### Roles
 

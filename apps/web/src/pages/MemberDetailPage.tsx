@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 import { formatDate, memberLedgerWhatsAppText, monthName, reminderText, reminderTextTelugu, rupees, todayISO } from '../chit'
 import { useReceiptView } from '../App'
 import { errorText, fetchAll, must, RECEIPT_SELECT, useAsync, useAuth } from '../lib/data'
-import { Badge, ContactButtons, Empty, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
+import { Badge, ConfirmModal, ContactButtons, Empty, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
 import { ErrorMessage, Field, SelectField } from '../components/DataControls'
 import MemberForm from '../components/MemberForm'
 import { shareElementAsImage } from '../lib/shareImage'
@@ -17,6 +17,10 @@ export default function MemberDetailPage() {
   const [tab, setTab] = useState<'dues' | 'payments' | 'lifts' | 'followups'>('dues')
   const [editing, setEditing] = useState(false)
   const [assigning, setAssigning] = useState(false)
+  const [confirmation, setConfirmation] = useState<{
+    title: string; message: string; confirmLabel: string; action: () => Promise<boolean>
+  } | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
   const [followup, setFollowup] = useState<any>({ activity_type: 'Call', notes: '', promised_date: '', next_followup_date: '' })
   const [savingFollowup, setSavingFollowup] = useState(false)
@@ -83,16 +87,49 @@ export default function MemberDetailPage() {
 
   const toggleStatus = async () => {
     const status = m.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
-    if (status === 'INACTIVE' && !window.confirm(`Mark ${m.name} as inactive? Their history stays; they are hidden from the active list.`)) return
+    if (status === 'INACTIVE') {
+      setError('')
+      setConfirmation({
+        title: 'Mark member inactive?',
+        message: `Mark ${m.name} as inactive? Their history stays; they are hidden from the active list.`,
+        confirmLabel: 'Mark inactive',
+        action: async () => {
+          const { error: updateError } = await supabase.from('customers').update({ status }).eq('id', m.id)
+          setError(updateError ? errorText(updateError) : '')
+          if (updateError) return false
+          await reload()
+          return true
+        },
+      })
+      return
+    }
     const { error: e } = await supabase.from('customers').update({ status }).eq('id', m.id)
     setError(e ? errorText(e) : '')
     if (!e) await reload()
   }
   const remove = async () => {
-    if (!window.confirm(`Permanently delete ${m.name}? Members with group-ticket history cannot be deleted; mark them inactive instead.`)) return
-    const { error: e } = await supabase.rpc('delete_customer_if_unlinked', { p_customer_id: m.id })
-    if (e) setError(errorText(e))
-    else navigate('/members', { replace: true })
+    setError('')
+    setConfirmation({
+      title: 'Delete member?',
+      message: `Permanently delete ${m.name}? Members with group-ticket history cannot be deleted; mark them inactive instead.`,
+      confirmLabel: 'Delete member',
+      action: async () => {
+        const { error: deleteError } = await supabase.rpc('delete_customer_if_unlinked', { p_customer_id: m.id })
+        if (deleteError) {
+          setError(errorText(deleteError))
+          return false
+        }
+        navigate('/members', { replace: true })
+        return true
+      },
+    })
+  }
+  const runConfirmation = async () => {
+    if (!confirmation) return
+    setConfirming(true)
+    const succeeded = await confirmation.action()
+    setConfirming(false)
+    if (succeeded) setConfirmation(null)
   }
 
   return <>
@@ -197,6 +234,10 @@ export default function MemberDetailPage() {
     {assigning && <Modal title={`Assign ${m.name} to a group`} onClose={() => setAssigning(false)}>
       <AssignGroup memberId={m.id} onSaved={async () => { setAssigning(false); await reload() }} />
     </Modal>}
+    {confirmation && <ConfirmModal title={confirmation.title} message={confirmation.message}
+      confirmLabel={confirmation.confirmLabel} danger busy={confirming} error={error}
+      onCancel={() => { if (!confirming) setConfirmation(null) }}
+      onConfirm={() => { void runConfirmation() }} />}
   </>
 }
 
@@ -204,7 +245,7 @@ function AssignGroup({ memberId, onSaved }: { memberId: string; onSaved: () => v
   const { data } = useAsync(async () => {
     const [groups, tickets] = await Promise.all([
       fetchAll(() => supabase.from('chit_groups').select('id,series,name,member_count,months').eq('status', 'ACTIVE').order('series')),
-      fetchAll(() => supabase.from('memberships').select('group_id,ticket_no')),
+      fetchAll(() => supabase.from('memberships').select('group_id,ticket_no,customer_id,status')),
     ])
     return { groups, tickets }
   }, [])
@@ -229,7 +270,9 @@ function AssignGroup({ memberId, onSaved }: { memberId: string; onSaved: () => v
   return <div className="form">
     <div className="grid">
       <SelectField label="Group" name="groupId" values={form} setValues={chooseGroup} required
-        options={(data?.groups ?? []).map(g => [g.id, `${g.series}${g.name ? ' · ' + g.name : ''} (${(data?.tickets ?? []).filter(t => t.group_id === g.id).length}/${g.member_count ?? g.months})`])} />
+        options={(data?.groups ?? []).filter(g => !(data?.tickets ?? []).some(t =>
+          t.group_id === g.id && t.customer_id === memberId && t.status === 'ACTIVE'))
+          .map(g => [g.id, `${g.series}${g.name ? ' · ' + g.name : ''} (${(data?.tickets ?? []).filter(t => t.group_id === g.id).length}/${g.member_count ?? g.months})`])} />
       <Field label="Ticket number" name="ticket" values={form} setValues={chooseGroup} type="number" required />
       <Field label="Joining date" name="joinedOn" values={form} setValues={chooseGroup} type="date" />
     </div>

@@ -77,6 +77,10 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
     if (tab === 'groups' && !groupId && groups.length) setGroupId(groups[0].id)
   }, [groupId, groups, tab])
 
+  const selectedGroup = groups.find(group => group.id === groupId)
+  const groupTickets = tickets.filter(ticket => ticket.group_id === groupId)
+  const q = search.trim().toLowerCase()
+
   const removeMember = (member: MemberRow) => {
     Alert.alert('Delete member?', `Permanently delete ${member.name}? Members with ticket history must be marked inactive instead.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -148,7 +152,10 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
       })
     setSaving(false)
     if (result.error) {
-      Alert.alert('Could not save ticket', supabaseErrorMessage(result.error.message))
+      const message = result.error.message.includes('memberships_one_active_ticket_per_member_group')
+        ? 'This member already has an active ticket in this group.'
+        : supabaseErrorMessage(result.error.message)
+      Alert.alert('Could not save ticket', message)
     } else {
       setTicketForm(null)
       setTargetCustomer('')
@@ -156,9 +163,6 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
     }
   }
 
-  const selectedGroup = groups.find(group => group.id === groupId)
-  const groupTickets = tickets.filter(ticket => ticket.group_id === groupId)
-  const q = search.trim().toLowerCase()
   const visibleMembers = members.filter(member => {
     const memberTickets = tickets.filter(ticket => ticket.customer_id === member.id)
     const searchText = `${member.name} ${member.member_code ?? ''} ${member.phone ?? ''} ${memberTickets.map(ticket => `${ticket.series} #${ticket.ticket_no}`).join(' ')}`.toLowerCase()
@@ -169,8 +173,14 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
         : memberTickets.some(ticket => ticket.membership_status === ticketStatus)))
       && (!q || searchText.includes(q))
   })
-  const memberOptions = members.filter(member => member.status === 'ACTIVE' &&
-    `${member.name} ${member.member_code ?? ''} ${member.phone ?? ''}`.toLowerCase().includes(q))
+  const memberOptions = members.filter(member => {
+    const alreadyActiveInGroup = tickets.some(ticket =>
+      ticket.group_id === groupId && ticket.customer_id === member.id &&
+      ticket.membership_status === 'ACTIVE' &&
+      (ticketForm?.mode !== 'replace' || ticket.membership_id !== ticketForm.ticket?.membership_id))
+    return member.status === 'ACTIVE' && !alreadyActiveInGroup &&
+      `${member.name} ${member.member_code ?? ''} ${member.phone ?? ''}`.toLowerCase().includes(q)
+  })
   const selectedMember = members.find(member => member.id === targetCustomer)
   const groupName = (group: GroupRow) => `${group.series}${group.name ? ` · ${group.name}` : ''}`
 

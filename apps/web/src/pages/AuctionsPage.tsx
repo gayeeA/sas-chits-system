@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { addMonths, auctionCalc, CHIT_RULES, currentMonth, formatDate, isMonthLabel, monthName, rupees, toPaise, toRupees, todayISO } from '../chit'
 import { csvRupees, errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
-import { Badge, Empty, ExportButton, Loading, Money, PageHeader } from '../components/ui'
+import { Badge, ConfirmModal, Empty, ExportButton, Loading, Money, PageHeader } from '../components/ui'
 import { ErrorMessage, Field, SelectField, SuccessMessage, TextArea } from '../components/DataControls'
 
 export default function AuctionsPage() {
@@ -73,6 +73,7 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
   const [bids, setBids] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmSummary, setConfirmSummary] = useState('')
   const g = groups.find(x => x.id === form.groupId)
   const rules = { ...CHIT_RULES.defaultGroupConfig, ...(g?.rule_config ?? {}) }
 
@@ -118,7 +119,11 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
     const summary = noWinner
       ? `${g.series} · ${monthName(form.month)}\nNo winner (company chit). Dividend per member: ${rupees(dividend)}.`
       : `${g.series} · ${monthName(form.month)}\nWinner: #${winnerName?.ticket_no} ${(winnerName?.customers as any)?.name}\nBid/discount: ${rupees(discount)}\nDividend per member: ${rupees(dividend)}\nPrize amount: ${rupees(prize!)}`
-    if (!window.confirm(`${summary}\n\nAuction details cannot be changed after saving. Save now?`)) return
+    setError('')
+    setConfirmSummary(summary)
+  }
+
+  const confirmSave = async () => {
     setBusy(true)
     try {
       must(await supabase.rpc('record_auction_full', {
@@ -187,5 +192,11 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
       <button onClick={onCancel}>Cancel</button>
       <ErrorMessage>{error}</ErrorMessage>
     </div>
+    {!!confirmSummary && <ConfirmModal title="Confirm auction" message={<>
+      <p style={{ whiteSpace: 'pre-line' }}>{confirmSummary}</p>
+      <p>Auction details cannot be changed after saving. Save now?</p>
+    </>} confirmLabel="Save auction" busy={busy} error={error}
+      onCancel={() => { if (!busy) setConfirmSummary('') }}
+      onConfirm={() => { void confirmSave() }} />}
   </section>
 }

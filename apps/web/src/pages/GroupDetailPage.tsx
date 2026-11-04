@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { CHIT_RULES, formatDate, groupEndMonth, monthName, reminderText, rupees, todayISO } from '../chit'
 import { errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
-import { Badge, ContactButtons, Empty, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
+import { Badge, ConfirmModal, ContactButtons, Empty, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
 import { ErrorMessage, Field, SelectField } from '../components/DataControls'
 import GroupForm from '../components/GroupForm'
 
@@ -15,6 +15,10 @@ export default function GroupDetailPage() {
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
   const [replacingTicket, setReplacingTicket] = useState<any>(null)
+  const [confirmation, setConfirmation] = useState<{
+    title: string; message: string; confirmLabel: string; action: () => Promise<boolean>
+  } | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
 
   const { data, error: loadError, loading, reload } = useAsync(async () => {
@@ -39,22 +43,64 @@ export default function GroupDetailPage() {
   const liftedIn = (membershipId: string) => auctions.find(a => a.winner_membership === membershipId)?.month_label
 
   const setTicketStatus = async (ticket: any, status: 'ACTIVE' | 'WITHDRAWN') => {
-    if (status === 'WITHDRAWN' && !window.confirm(`Mark ticket #${ticket.ticket_no} (${ticket.name}) as withdrawn? They will not get instalments from future auctions. Past dues stay.`)) return
+    if (status === 'WITHDRAWN') {
+      setError('')
+      setConfirmation({
+        title: 'Withdraw ticket?',
+        message: `Mark ticket #${ticket.ticket_no} (${ticket.name}) as withdrawn? They will not get instalments from future auctions. Past dues stay.`,
+        confirmLabel: 'Withdraw ticket',
+        action: async () => {
+          const { error: updateError } = await supabase.from('memberships').update({ status }).eq('id', ticket.membership_id)
+          setError(updateError ? errorText(updateError) : '')
+          if (updateError) return false
+          await reload()
+          return true
+        },
+      })
+      return
+    }
     const { error: updateError } = await supabase.from('memberships').update({ status }).eq('id', ticket.membership_id)
     setError(updateError ? errorText(updateError) : '')
     if (!updateError) await reload()
   }
   const removeTicket = async (ticket: any) => {
-    if (!window.confirm(`Remove ${ticket.name} from ticket #${ticket.ticket_no}? Only possible before any instalment is created.`)) return
-    const { error: deleteError } = await supabase.from('memberships').delete().eq('id', ticket.membership_id)
-    setError(deleteError ? (/foreign key/i.test(deleteError.message) ? 'This ticket already has instalments or payments. Mark it Withdrawn instead.' : errorText(deleteError)) : '')
-    if (!deleteError) await reload()
+    setError('')
+    setConfirmation({
+      title: 'Remove member from ticket?',
+      message: `Remove ${ticket.name} from ticket #${ticket.ticket_no}? This is only possible before any instalment is created.`,
+      confirmLabel: 'Remove ticket',
+      action: async () => {
+        const { error: deleteError } = await supabase.from('memberships').delete().eq('id', ticket.membership_id)
+        setError(deleteError ? (/foreign key/i.test(deleteError.message) ? 'This ticket already has instalments or payments. Mark it Withdrawn instead.' : errorText(deleteError)) : '')
+        if (deleteError) return false
+        await reload()
+        return true
+      },
+    })
   }
   const deleteGroup = async () => {
-    if (!window.confirm(`Permanently delete empty group ${g.series}? Groups with tickets or records must be paused/completed instead.`)) return
-    const { error: deleteError } = await supabase.rpc('delete_group_if_empty', { p_group_id: g.id })
-    if (deleteError) setError(errorText(deleteError))
-    else navigate('/groups', { replace: true })
+    setError('')
+    setConfirmation({
+      title: 'Delete empty group?',
+      message: `Permanently delete group ${g.series}? Groups with tickets or records must be paused or completed instead.`,
+      confirmLabel: 'Delete group',
+      action: async () => {
+        const { error: deleteError } = await supabase.rpc('delete_group_if_empty', { p_group_id: g.id })
+        if (deleteError) {
+          setError(errorText(deleteError))
+          return false
+        }
+        navigate('/groups', { replace: true })
+        return true
+      },
+    })
+  }
+  const runConfirmation = async () => {
+    if (!confirmation) return
+    setConfirming(true)
+    const succeeded = await confirmation.action()
+    setConfirming(false)
+    if (succeeded) setConfirmation(null)
   }
 
   return <>
@@ -147,12 +193,18 @@ export default function GroupDetailPage() {
       <GroupForm group={g} locked={auctions.length > 0} onCancel={() => setEditing(false)} onSaved={async () => { setEditing(false); await reload() }} />
     </Modal>}
     {adding && <Modal title={`Add member to ${g.series}`} onClose={() => setAdding(false)}>
-      <AddTicket group={g} taken={tickets.map(t => t.ticket_no)} onSaved={async () => { setAdding(false); await reload() }} />
+      <AddTicket group={g} taken={tickets.map(t => t.ticket_no)}
+        activeCustomerIds={tickets.filter(t => t.membership_status === 'ACTIVE').map(t => t.customer_id)}
+        onSaved={async () => { setAdding(false); await reload() }} />
     </Modal>}
     {replacingTicket && <Modal title={`Change ticket #${replacingTicket.ticket_no}`} onClose={() => setReplacingTicket(null)}>
       <ChangeTicket ticket={replacingTicket} taken={tickets.map(t => t.ticket_no)}
         onSaved={async () => { setReplacingTicket(null); await reload() }} />
     </Modal>}
+    {confirmation && <ConfirmModal title={confirmation.title} message={confirmation.message}
+      confirmLabel={confirmation.confirmLabel} danger busy={confirming} error={error}
+      onCancel={() => { if (!confirming) setConfirmation(null) }}
+      onConfirm={() => { void runConfirmation() }} />}
   </>
 }
 
@@ -198,14 +250,17 @@ function ChangeTicket({ ticket, taken, onSaved }: { ticket: any; taken: number[]
   </div>
 }
 
-function AddTicket({ group, taken, onSaved }: { group: any; taken: number[]; onSaved: () => void }) {
+function AddTicket({ group, taken, activeCustomerIds, onSaved }: {
+  group: any; taken: number[]; activeCustomerIds: string[]; onSaved: () => void
+}) {
   const { data: members } = useAsync(() => fetchAll(() => supabase.from('customers').select('id,name,member_code,phone').eq('status', 'ACTIVE').order('name')), [])
   const firstFree = Array.from({ length: (group.member_count ?? group.months) + taken.length }, (_, i) => i + 1).find(n => !taken.includes(n)) ?? 1
   const [form, setForm] = useState<any>({ ticket: firstFree, joinedOn: todayISO() })
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const options = (members ?? []).filter(m => `${m.name} ${m.member_code} ${m.phone ?? ''}`.toLowerCase().includes(search.toLowerCase()))
+  const options = (members ?? []).filter(m => !activeCustomerIds.includes(m.id) &&
+    `${m.name} ${m.member_code} ${m.phone ?? ''}`.toLowerCase().includes(search.toLowerCase()))
 
   const save = async () => {
     setBusy(true)
@@ -213,7 +268,9 @@ function AddTicket({ group, taken, onSaved }: { group: any; taken: number[]; onS
       customer_id: form.customerId, group_id: group.id, ticket_no: Number(form.ticket), joined_on: form.joinedOn || null,
     })
     setBusy(false)
-    if (insertError) setError(/unique/i.test(insertError.message) ? `Ticket #${form.ticket} is already taken in this group.` : errorText(insertError))
+    if (insertError) setError(/memberships_one_active_ticket_per_member_group/i.test(insertError.message)
+      ? 'This member already has an active ticket in this group.'
+      : /unique/i.test(insertError.message) ? `Ticket #${form.ticket} is already taken in this group.` : errorText(insertError))
     else onSaved()
   }
   return <div className="form">
