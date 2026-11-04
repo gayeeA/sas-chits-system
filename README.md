@@ -26,7 +26,9 @@ This is an office tool for the chit-fund owner and staff only. Members (customer
 
 The website works on a phone too (bottom quick bar). On Android Chrome use **⋮ → Add to Home screen** to open it like an app.
 
-The Expo phone app (field collection) has: Home summary, Dues list with Call/Chat reminder and shared follow-up notes, Collect (4 modes, receipt image and PDF sharing), and Today's collection (cash-in-hand by mode, re-share receipts). Owners and managers can also enter a paper receipt from the phone.
+The Expo phone app (field collection) has: Home summary, Dues list with Call/Chat reminder and shared follow-up notes, Collect (4 modes, receipt image and PDF sharing), and Today's collection (cash-in-hand by mode, re-share receipts). Owners and managers can also enter a paper receipt from the phone. The owner can manage members, group tickets, and empty-group deletion from **Manage members & groups**.
+
+Ticket reassignment and member/group deletion are owner-only on both clients. Reassignment is allowed only before financial, auction, or follow-up history exists; members and groups with linked records must be marked inactive/withdrawn or paused/completed instead of being deleted.
 
 ### Roles
 
@@ -47,7 +49,7 @@ Permissions are enforced in the database (row-level security), not only hidden i
 3. **Required:** In a new SQL Editor query, paste all of `supabase/migrations/002_admin_features.sql` and click **Run**. The website and mobile app use objects added by this migration, including `member_outstanding`, `installment_status`, `dashboard_summary`, payouts, expenses, and audit logs. If the base schema was installed earlier, run this migration now. If financial records already exist, make a database backup first.
 4. Run `supabase/migrations/003_legacy_receipts.sql` after migration 002. It adds protected paper-receipt source details and the historical-payment RPC used by the website and phone.
 5. Run `supabase/migrations/004_member_followups.sql` after migration 003. It adds the shared call/visit/reminder log used by the phone and website.
-6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, `007_receipt_scans.sql`, and `008_legacy_receipt_adjustments.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, private receipt photos, and BP/agent commission adjustment fields for paper receipts.
+6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, `007_receipt_scans.sql`, `008_legacy_receipt_adjustments.sql`, and `009_owner_member_group_management.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, private receipt photos, BP/agent commission adjustment fields for paper receipts, and owner-only member/group deletion and ticket reassignment safeguards.
 7. In Authentication settings, disable public sign-up. Create the owner's account first; the database's signup trigger makes the first profile the owner.
 8. Keep the URL and anon key for both apps. Never put a service-role key in either client.
 

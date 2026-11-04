@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { CHIT_RULES, formatDate, groupEndMonth, monthName, reminderText, rupees, todayISO } from '../chit'
 import { errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
@@ -9,10 +9,12 @@ import GroupForm from '../components/GroupForm'
 
 export default function GroupDetailPage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const auth = useAuth()
   const [tab, setTab] = useState<'tickets' | 'ledger' | 'auctions'>('tickets')
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [replacingTicket, setReplacingTicket] = useState<any>(null)
   const [error, setError] = useState('')
 
   const { data, error: loadError, loading, reload } = useAsync(async () => {
@@ -48,6 +50,12 @@ export default function GroupDetailPage() {
     setError(deleteError ? (/foreign key/i.test(deleteError.message) ? 'This ticket already has instalments or payments. Mark it Withdrawn instead.' : errorText(deleteError)) : '')
     if (!deleteError) await reload()
   }
+  const deleteGroup = async () => {
+    if (!window.confirm(`Permanently delete empty group ${g.series}? Groups with tickets or records must be paused/completed instead.`)) return
+    const { error: deleteError } = await supabase.rpc('delete_group_if_empty', { p_group_id: g.id })
+    if (deleteError) setError(errorText(deleteError))
+    else navigate('/groups', { replace: true })
+  }
 
   return <>
     <PageHeader title={`${g.series}${g.name ? ' · ' + g.name : ''}`}
@@ -55,6 +63,7 @@ export default function GroupDetailPage() {
       actions={<>
         <Badge status={g.status} />
         {auth.isManager && <button onClick={() => setEditing(true)}>Edit group</button>}
+        {auth.isOwner && <button onClick={() => { void deleteGroup() }}>Delete empty group</button>}
         {auth.isManager && <Link className="btn pri" to={`/auctions?group=${g.id}`}>Record auction</Link>}
       </>} />
     <div className="stats">
@@ -78,10 +87,10 @@ export default function GroupDetailPage() {
 
     {tab === 'tickets' && <section className="card">
       <div className="card-head"><h3>Tickets / members</h3>
-        {auth.isManager && <button className="pri" onClick={() => setAdding(true)}>+ Add member to group</button>}</div>
+        {auth.isOwner && <button className="pri" onClick={() => setAdding(true)}>+ Add member to group</button>}</div>
       {tickets.length ? <div className="table-wrap"><table>
         <thead><tr><th>Ticket</th><th>Member</th><th>Lifted</th><th className="r">Total paid</th><th className="r">Previous due</th>
-          <th className="r">This month</th><th className="r">Outstanding</th><th>Follow up</th>{auth.isManager && <th />}</tr></thead>
+          <th className="r">This month</th><th className="r">Outstanding</th><th>Follow up</th>{auth.isOwner && <th />}</tr></thead>
         <tbody>{tickets.map(t => <tr key={t.membership_id} className={t.membership_status === 'WITHDRAWN' ? 'struck' : ''}>
           <td>#{t.ticket_no}</td>
           <td><Link to={`/members/${t.customer_id}`}>{t.name}</Link> <span className="muted small">{t.member_code}</span>
@@ -92,10 +101,11 @@ export default function GroupDetailPage() {
           <td className="r">{t.current_balance ? <Money value={t.current_balance} /> : t.due ? <Badge status="PAID" /> : '—'}</td>
           <td className="r">{t.total_outstanding ? <Money value={t.total_outstanding} strong /> : '—'}</td>
           <td>{t.total_outstanding > 0 && <ContactButtons phone={t.phone} message={reminderText({ name: t.name, amount: t.total_outstanding, series: g.series })} />}</td>
-          {auth.isManager && <td>{t.membership_status === 'ACTIVE'
+          {auth.isOwner && <td>{t.membership_status === 'ACTIVE'
             ? (months.length ? <button className="small" onClick={() => setTicketStatus(t, 'WITHDRAWN')}>Withdraw</button>
               : <button className="small" onClick={() => removeTicket(t)}>Remove</button>)
-            : <button className="small" onClick={() => setTicketStatus(t, 'ACTIVE')}>Re-activate</button>}</td>}
+            : <button className="small" onClick={() => setTicketStatus(t, 'ACTIVE')}>Re-activate</button>}
+            <button className="small" onClick={() => setReplacingTicket(t)}>Change member / ticket</button></td>}
         </tr>)}</tbody></table></div> : <Empty>No members in this group yet.</Empty>}
     </section>}
 
@@ -139,7 +149,53 @@ export default function GroupDetailPage() {
     {adding && <Modal title={`Add member to ${g.series}`} onClose={() => setAdding(false)}>
       <AddTicket group={g} taken={tickets.map(t => t.ticket_no)} onSaved={async () => { setAdding(false); await reload() }} />
     </Modal>}
+    {replacingTicket && <Modal title={`Change ticket #${replacingTicket.ticket_no}`} onClose={() => setReplacingTicket(null)}>
+      <ChangeTicket ticket={replacingTicket} taken={tickets.map(t => t.ticket_no)}
+        onSaved={async () => { setReplacingTicket(null); await reload() }} />
+    </Modal>}
   </>
+}
+
+function ChangeTicket({ ticket, taken, onSaved }: { ticket: any; taken: number[]; onSaved: () => void }) {
+  const { data: members } = useAsync(() => fetchAll(() => supabase.from('customers')
+    .select('id,name,member_code,phone').eq('status', 'ACTIVE').order('name')), [])
+  const [memberSearch, setMemberSearch] = useState('')
+  const [form, setForm] = useState<any>({ customerId: ticket.customer_id, ticketNo: String(ticket.ticket_no) })
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const options = (members ?? []).filter(m =>
+    `${m.name} ${m.member_code} ${m.phone ?? ''}`.toLowerCase().includes(memberSearch.toLowerCase()))
+
+  const save = async () => {
+    setBusy(true)
+    const { error: updateError } = await supabase.rpc('replace_membership_assignment', {
+      p_membership_id: ticket.membership_id,
+      p_customer_id: form.customerId,
+      p_ticket_no: Number(form.ticketNo),
+    })
+    setBusy(false)
+    if (updateError) setError(errorText(updateError))
+    else onSaved()
+  }
+
+  return <div className="form">
+    <p className="muted small">A ticket can be reassigned only when it has no installment, payment, auction, payout, or follow-up history. Existing financial history is never reassigned.</p>
+    <input type="search" placeholder="Search active member by name, ID or phone" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
+    <div className="grid">
+      <SelectField label="Member" name="customerId" values={form} setValues={setForm} required
+        options={options.map(m => [m.id, `${m.name} (${m.member_code}${m.phone ? ', ' + m.phone : ''})`])} />
+      <Field label="Ticket number" name="ticketNo" values={form} setValues={setForm} type="number" required min={1} />
+    </div>
+    {Number(form.ticketNo) !== ticket.ticket_no && taken.includes(Number(form.ticketNo)) &&
+      <p className="warn-text">Ticket #{form.ticketNo} is already assigned in this group.</p>}
+    <div className="bar">
+      <button className="pri" disabled={busy || !form.customerId || !Number(form.ticketNo) ||
+        (Number(form.ticketNo) !== ticket.ticket_no && taken.includes(Number(form.ticketNo)))} onClick={() => { void save() }}>
+        {busy ? 'Saving…' : 'Save ticket assignment'}
+      </button>
+      <ErrorMessage>{error}</ErrorMessage>
+    </div>
+  </div>
 }
 
 function AddTicket({ group, taken, onSaved }: { group: any; taken: number[]; onSaved: () => void }) {

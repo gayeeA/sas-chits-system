@@ -28,6 +28,7 @@ export type RootStackParamList = {
   Collect: { due: MemberDue }
   LegacyReceipt: undefined
   Followups: { due: MemberDue }
+  Management: undefined
 }
 
 export type ScreenProps<Route extends keyof RootStackParamList> = NativeStackScreenProps<RootStackParamList, Route>

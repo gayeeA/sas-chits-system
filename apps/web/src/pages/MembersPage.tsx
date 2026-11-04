@@ -14,6 +14,7 @@ export default function MembersPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('ACTIVE')
   const [groupId, setGroupId] = useState('')
+  const [ticketStatus, setTicketStatus] = useState('')
   const creating = params.get('new') === '1'
   const importing = params.get('import') === '1'
   const auth = useAuth()
@@ -32,6 +33,9 @@ export default function MembersPage() {
   const rows = (data?.members ?? []).filter(m =>
     (!status || m.status === status) &&
     (!groupId || ticketsOf(m.id).some(t => t.group_id === groupId)) &&
+    (!ticketStatus || (ticketStatus === 'NONE'
+      ? ticketsOf(m.id).length === 0
+      : ticketsOf(m.id).some(t => t.membership_status === ticketStatus))) &&
     (!q || `${m.name} ${m.member_code} ${m.phone ?? ''} ${m.alt_phone ?? ''} ${ticketsOf(m.id).map(t => `${t.series} #${t.ticket_no} ${t.ticket_no}`).join(' ')}`.toLowerCase().includes(q)))
   const outstandingOf = (id: string) => ticketsOf(id).reduce((sum, t) => sum + Number(t.total_outstanding), 0)
 
@@ -44,13 +48,17 @@ export default function MembersPage() {
           { label: 'Groups', value: m => ticketsOf(m.id).map(t => `${t.series} #${t.ticket_no}`).join('; ') },
           { label: 'Outstanding (₹)', value: m => csvRupees(outstandingOf(m.id)) }, { label: 'Status', value: m => m.status },
         ]} title="Members" />
-        {auth.isManager && <button onClick={() => setParams({ import: '1' })}>⬆ Import from Excel</button>}
-        <button className="pri" onClick={() => setParams({ new: '1' })}>+ Add member</button>
+        {auth.isOwner && <button onClick={() => setParams({ import: '1' })}>⬆ Import from Excel</button>}
+        {auth.isOwner && <button className="pri" onClick={() => setParams({ new: '1' })}>+ Add member</button>}
       </>} />
     <div className="filters">
       <input type="search" placeholder="Search name, member ID or phone" value={search} onChange={e => setSearch(e.target.value)} />
       <select value={groupId} onChange={e => setGroupId(e.target.value)} aria-label="Group">
         <option value="">All groups</option>{data?.groups.map(g => <option key={g.id} value={g.id}>{g.series}</option>)}
+      </select>
+      <select value={ticketStatus} onChange={e => setTicketStatus(e.target.value)} aria-label="Ticket status">
+        <option value="">All ticket statuses</option><option value="ACTIVE">Active ticket</option>
+        <option value="WITHDRAWN">Withdrawn ticket</option><option value="NONE">No group ticket</option>
       </select>
       <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Status">
         <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="">All</option>
@@ -73,10 +81,10 @@ export default function MembersPage() {
         </tr>
       })}</tbody></table></div></section>
       : <Empty>{data.members.length ? 'No members match this search.' : 'No members yet. Click “Add member”, or “Import from Excel” to add many at once.'}</Empty>)}
-    {importing && <Modal title="Import members from Excel" wide onClose={() => { setParams({}); void reload() }}>
+    {importing && auth.isOwner && <Modal title="Import members from Excel" wide onClose={() => { setParams({}); void reload() }}>
       <MemberImport onDone={() => { setParams({}); void reload() }} />
     </Modal>}
-    {creating && <Modal title="Add member" wide onClose={() => setParams({})}>
+    {creating && auth.isOwner && <Modal title="Add member" wide onClose={() => setParams({})}>
       <MemberForm onCancel={() => setParams({})} onSaved={id => navigate(`/members/${id}`)} />
     </Modal>}
   </>

@@ -13,7 +13,7 @@ export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, proc
 
 export function supabaseErrorMessage(message: string) {
   if (/PGRST202|PGRST205|schema cache|could not find (?:the )?(?:table|view|function|relation)/i.test(message)) {
-    return 'The Supabase database is missing objects required by this app. Run migrations 002_admin_features.sql through 007_receipt_scans.sql in order after the base schema. Do not rerun schema.sql on a database with financial records.'
+    return 'The Supabase database is missing objects required by this app. Run migrations 002_admin_features.sql through 009_owner_member_group_management.sql in order after the base schema. Do not rerun schema.sql on a database with financial records.'
   }
   return message
 }

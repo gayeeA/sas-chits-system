@@ -89,9 +89,9 @@ export default function MemberDetailPage() {
     if (!e) await reload()
   }
   const remove = async () => {
-    if (!window.confirm(`Permanently delete ${m.name}? This is only possible when they have never been added to a group.`)) return
-    const { error: e } = await supabase.from('customers').delete().eq('id', m.id)
-    if (e) setError(/foreign key/i.test(e.message) ? 'This member is linked to a group. Mark them Inactive instead.' : errorText(e))
+    if (!window.confirm(`Permanently delete ${m.name}? Members with group-ticket history cannot be deleted; mark them inactive instead.`)) return
+    const { error: e } = await supabase.rpc('delete_customer_if_unlinked', { p_customer_id: m.id })
+    if (e) setError(errorText(e))
     else navigate('/members', { replace: true })
   }
 
@@ -103,6 +103,7 @@ export default function MemberDetailPage() {
         <ContactButtons phone={m.phone} message={outstanding ? reminderText({ name: m.name, amount: outstanding }) : `Namaste ${m.name} garu, `} />
         {tickets.length > 0 && <Link className="btn pri" to={`/collect?membership=${tickets[0].membership_id}`}>Record payment</Link>}
         {auth.isManager && <button onClick={() => setEditing(true)}>Edit</button>}
+        {auth.isOwner && <button onClick={() => { void remove() }}>Delete member</button>}
       </>} />
     <ErrorMessage>{error}</ErrorMessage>
     <div ref={statementImageRef} aria-hidden="true" style={{ position: 'fixed', left: -10000, top: 0, width: 720, padding: 32, background: '#fff', color: '#17152a', fontFamily: 'Arial, sans-serif' }}>
@@ -142,7 +143,7 @@ export default function MemberDetailPage() {
         </div>}
       </section>
       <section className="card">
-        <div className="card-head"><h3>Chit groups</h3>{auth.isManager && <button className="small" onClick={() => setAssigning(true)}>+ Assign to group</button>}</div>
+        <div className="card-head"><h3>Chit groups</h3>{auth.isOwner && <button className="small" onClick={() => setAssigning(true)}>+ Assign to group</button>}</div>
         {tickets.length ? <table><thead><tr><th>Group</th><th>Ticket</th><th>Status</th><th>Collector</th><th className="r">Outstanding</th></tr></thead>
           <tbody>{tickets.map(t => <tr key={t.membership_id}>
             <td><Link to={`/groups/${t.group_id}`}>{t.series}</Link></td><td>#{t.ticket_no}</td>

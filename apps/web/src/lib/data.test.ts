@@ -4,7 +4,7 @@ import { errorText } from './data'
 describe('database setup errors', () => {
   it('explains how to install missing Supabase objects', () => {
     expect(errorText({ message: "Could not find the table 'public.member_outstanding' in the schema cache", code: 'PGRST205' }))
-      .toContain('supabase/migrations/002_admin_features.sql')
+      .toContain('009_owner_member_group_management.sql')
   })
 
   it('preserves unrelated database errors', () => {

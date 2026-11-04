@@ -11,6 +11,7 @@ export default function HomeScreen({ navigation }: ScreenProps<'Home'>) {
   const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [canEnterLegacy, setCanEnterLegacy] = useState(false)
+  const [canManageRecords, setCanManageRecords] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
 
@@ -46,6 +47,7 @@ export default function HomeScreen({ navigation }: ScreenProps<'Home'>) {
       if (!data.user) return
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
       setCanEnterLegacy(['owner', 'manager'].includes(profile?.role))
+      setCanManageRecords(profile?.role === 'owner')
     })
     const unsubscribe = navigation.addListener('focus', () => {
       void load()
@@ -74,6 +76,9 @@ export default function HomeScreen({ navigation }: ScreenProps<'Home'>) {
       <TouchableOpacity style={[st.btn, { flex: 1, minWidth: 126, marginTop: 0, backgroundColor: '#2B1A6B' }]} onPress={() => navigation.navigate('Today')}><Text style={st.bt}>Today's collection</Text></TouchableOpacity>
     </View>
     {canEnterLegacy && <TouchableOpacity style={[st.smallBtn, { alignSelf: 'flex-start', marginBottom: 10 }]} onPress={() => navigation.navigate('LegacyReceipt')}><Text>＋ Enter a paper receipt</Text></TouchableOpacity>}
+    {canManageRecords && <TouchableOpacity style={[st.smallBtn, { alignSelf: 'flex-start', marginBottom: 10 }]} onPress={() => navigation.navigate('Management')}>
+      <Text>Manage members & groups</Text>
+    </TouchableOpacity>}
     {pendingCount > 0 && <TouchableOpacity style={[st.card, { borderLeftWidth: 4, borderLeftColor: '#E8B43C' }]} disabled={syncing} onPress={() => { void syncOffline() }}><Text style={st.name}>{syncing ? 'Syncing payments…' : `${pendingCount} payment(s) waiting to sync`}</Text><Text style={st.hint}>Saved securely on this phone · Tap to retry</Text></TouchableOpacity>}
     {summary && <View style={st.tiles}>
       {tile("Today's collection", rupees(summary.received_today), modes(summary.today_by_mode) || `${summary.receipts_today} receipts`, '#11734b')}
