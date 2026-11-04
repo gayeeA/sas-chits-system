@@ -69,9 +69,9 @@ export default function HomeScreen({ navigation }: ScreenProps<'Home'>) {
       <TouchableOpacity onPress={signOut}><Text style={{ color: '#E8B43C' }}>Sign out</Text></TouchableOpacity>
     </View>
     <Text style={st.lb}>{monthName(currentMonth())} · today {formatDate(todayISO())}</Text>
-    <View style={[st.row, { marginVertical: 10 }]}>
-      <TouchableOpacity style={[st.btn, { flex: 1, marginTop: 0 }]} onPress={() => navigation.navigate('Dues')}><Text style={st.bt}>Collect / Dues</Text></TouchableOpacity>
-      <TouchableOpacity style={[st.btn, { flex: 1, marginTop: 0, backgroundColor: '#2B1A6B' }]} onPress={() => navigation.navigate('Today')}><Text style={st.bt}>Today's collection</Text></TouchableOpacity>
+    <View style={[st.row, { marginVertical: 10, flexWrap: 'wrap' }]}>
+      <TouchableOpacity style={[st.btn, { flex: 1, minWidth: 126, marginTop: 0 }]} onPress={() => navigation.navigate('Dues')}><Text style={st.bt}>Collect / Dues</Text></TouchableOpacity>
+      <TouchableOpacity style={[st.btn, { flex: 1, minWidth: 126, marginTop: 0, backgroundColor: '#2B1A6B' }]} onPress={() => navigation.navigate('Today')}><Text style={st.bt}>Today's collection</Text></TouchableOpacity>
     </View>
     {canEnterLegacy && <TouchableOpacity style={[st.smallBtn, { alignSelf: 'flex-start', marginBottom: 10 }]} onPress={() => navigation.navigate('LegacyReceipt')}><Text>＋ Enter a paper receipt</Text></TouchableOpacity>}
     {pendingCount > 0 && <TouchableOpacity style={[st.card, { borderLeftWidth: 4, borderLeftColor: '#E8B43C' }]} disabled={syncing} onPress={() => { void syncOffline() }}><Text style={st.name}>{syncing ? 'Syncing payments…' : `${pendingCount} payment(s) waiting to sync`}</Text><Text style={st.hint}>Saved securely on this phone · Tap to retry</Text></TouchableOpacity>}

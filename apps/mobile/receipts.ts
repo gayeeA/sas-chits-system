@@ -8,7 +8,7 @@ import type { ShareSingleOptions } from 'react-native-share'
 import { phoneDigits, receiptHtml, receiptWhatsAppText } from './chit'
 import { LOGO } from './logoData'
 
-export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series)), payment_allocations(id,amount,allocation_type,installments(month_label)), receipt_scan_attachments(id,object_path)'
+export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series)), payment_allocations(id,amount,allocation_type,installments(month_label)), legacy_receipt_sources(paper_receipt_no,paper_book,bp_adjustment,agent_commission_adjustment), receipt_scan_attachments(id,object_path)'
 export const receiptImageSavedLocation = () => Platform.OS === 'android' ? 'your selected folder (usually Downloads)' : 'Photos'
 
 /** Render the company-format receipt to PDF and open the share sheet (Chat, print, save). */

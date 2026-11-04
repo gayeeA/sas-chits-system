@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#101224', padding: 10, borderRadius: 12, marginBottom: 12, borderBottomWidth: 3, borderBottomColor: '#E8B43C' },
   topt: { flex: 1, color: '#fff', fontWeight: '700' },
   name: { fontSize: 17, fontWeight: '600', marginVertical: 6 },
-  in: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8 },
+  in: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8, color: '#222' },
   lb: { fontSize: 12, color: '#666' },
   card: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#e5e5e5' },
   btn: { backgroundColor: '#E10F17', padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },

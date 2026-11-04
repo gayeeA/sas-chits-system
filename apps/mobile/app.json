@@ -4,6 +4,11 @@
     "slug": "saschits",
     "version": "1.0.0",
     "orientation": "portrait",
+    "androidStatusBar": {
+      "backgroundColor": "#f6f5fa",
+      "barStyle": "dark-content",
+      "translucent": false
+    },
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/icon.png",

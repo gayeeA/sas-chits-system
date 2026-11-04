@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 
-export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series,name)), payment_allocations(id,amount,allocation_type,installments(month_label)), legacy_receipt_sources(paper_receipt_no,paper_book,source_file), cheque_tracking(clearance_status,notes,updated_at), receipt_scan_attachments(id,object_path,recognized_text,created_at)'
+export const RECEIPT_SELECT = '*, memberships(ticket_no, customers(name,phone,member_code), chit_groups(series,name)), payment_allocations(id,amount,allocation_type,installments(month_label)), legacy_receipt_sources(paper_receipt_no,paper_book,source_file,bp_adjustment,agent_commission_adjustment), cheque_tracking(clearance_status,notes,updated_at), receipt_scan_attachments(id,object_path,recognized_text,created_at)'
 
 /** Throws the Supabase error so callers can use try/catch or useAsync. */
 export function must<T>(result: { data: T; error: { message: string } | null }): T {

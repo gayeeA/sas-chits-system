@@ -35,6 +35,7 @@ export default function LegacyReceiptEntry({ onDone }: { onDone: (receiptId: str
         p_ref_no: form.reference?.trim() || null, p_ref_date: form.refDate || null,
         p_received_by: form.receivedBy?.trim() || null, p_notes: form.notes?.trim() || null,
         p_paper_receipt_no: form.paperNo?.trim() || null, p_paper_book: form.paperBook?.trim() || null,
+        p_bp_adjustment: toPaise(form.bpAdjustment || 0), p_agent_commission_adjustment: toPaise(form.agentCommissionAdjustment || 0),
       }))
     } catch (e) { setError(errorText(e)); setBusy(false); return }
     if (photo) {
@@ -66,7 +67,7 @@ export default function LegacyReceiptEntry({ onDone }: { onDone: (receiptId: str
       <h3 style={{ margin: '4px 0' }}>Enter Paper Receipt</h3>
       <button className="pri" disabled={busy || !ticket || !form.month || !form.date || toPaise(form.amount) <= 0} onClick={() => { void save() }}>{busy ? 'Saving…' : 'Save'}</button>
     </div>
-    <p>Enter a receipt already written in the paper book. Its original number is saved separately from the system receipt number, and the amount is applied through the member ledger.</p>
+    <p>Enter a receipt already written in the paper book. Its original number and adjustments are saved separately from the system receipt number; the payment amount alone is applied through the member ledger.</p>
     {!ticket ? <><label>Find member / ticket<input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Name, member ID, phone, group or ticket" /></label>
       {matches.length > 0 && <ul className="pick-list">{matches.map(t => <li key={t.membership_id}><button onClick={() => { setTicket(t); setForm((f: any) => ({ ...f, month: t.current_month ?? '' })) }}><b>{t.name}</b><span className="muted"> {t.member_code} · {t.series} #{t.ticket_no}</span></button></li>)}</ul>}</> : <div className="selected-member"><b>{ticket.name} · {ticket.series} #{ticket.ticket_no}</b><button onClick={() => setTicket(null)}>Change</button></div>}
     {ticket && <>
@@ -75,6 +76,8 @@ export default function LegacyReceiptEntry({ onDone }: { onDone: (receiptId: str
         <Field label="Amount received (₹) *" name="amount" values={form} setValues={setForm} type="number" required min={0.01} step="0.01" />
         <Field label="Original paper receipt number" name="paperNo" values={form} setValues={setForm} />
         <Field label="Receipt book / series" name="paperBook" values={form} setValues={setForm} placeholder="e.g. Book 2" />
+        <Field label="BP adjustment (₹)" name="bpAdjustment" values={form} setValues={setForm} type="number" min={0} step="0.01" />
+        <Field label="Agent commission adjustment (₹)" name="agentCommissionAdjustment" values={form} setValues={setForm} type="number" min={0} step="0.01" />
         <label><span>Payment method</span><select value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })}>{PAYMENT_MODES.map(m => <option key={m}>{m}</option>)}</select></label>
         {form.mode !== 'Cash' && <Field label="Bank / UPI app" name="bank" values={form} setValues={setForm} />}
         {form.mode !== 'Cash' && <Field label="Cheque / transaction reference" name="reference" values={form} setValues={setForm} />}

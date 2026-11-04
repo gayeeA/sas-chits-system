@@ -2,7 +2,7 @@
 
 ## Before using live company records
 
-- Back up the database, then apply migrations `002_admin_features.sql` through `007_receipt_scans.sql` in order to the production Supabase project.
+- Back up the database, then apply migrations `002_admin_features.sql` through `008_legacy_receipt_adjustments.sql` in order to the production Supabase project.
 - Review Supabase Security Advisor and Performance Advisor. Confirm row-level security is enabled and sensible on every exposed table, and enable SSL enforcement.
 - Keep public sign-up disabled. Test with owner, manager, and staff accounts. Never put a Supabase service-role key in either client.
 - The phone app stores its sign-in session with Expo SecureStore. The shared database remains the source of truth; do not rely on phone storage as the only copy of company records.

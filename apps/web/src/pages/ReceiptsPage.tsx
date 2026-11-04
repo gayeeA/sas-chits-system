@@ -91,6 +91,7 @@ export default function ReceiptsPage() {
         { label: 'Month', value: r => r.month_label }, { label: 'Amount (₹)', value: r => csvRupees(r.total) }, { label: 'Mode', value: r => r.mode },
         { label: 'Bank', value: r => r.bank }, { label: 'Reference', value: r => r.ref_no }, { label: 'Received by', value: r => r.received_by },
         { label: 'Paper receipt no', value: r => r.legacy_receipt_sources?.[0]?.paper_receipt_no }, { label: 'Receipt book', value: r => r.legacy_receipt_sources?.[0]?.paper_book },
+        { label: 'BP adjustment (₹)', value: r => csvRupees(r.legacy_receipt_sources?.[0]?.bp_adjustment) }, { label: 'Agent commission adjustment (₹)', value: r => csvRupees(r.legacy_receipt_sources?.[0]?.agent_commission_adjustment) },
         { label: 'Status', value: r => r.status }, { label: 'Cancel reason', value: r => r.cancelled_reason },
       ]} /></>} />
     <div className="filters">
@@ -108,7 +109,7 @@ export default function ReceiptsPage() {
     {data && (rows.length ? <section className="card"><div className="table-wrap"><table>
       <thead><tr><th>No. / paper ref</th><th>Date</th><th>Member</th><th>Group</th><th>Month</th><th>Mode / cheque</th><th className="r">Amount</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>{rows.map(receipt => <tr key={receipt.id} className={receipt.status === 'CANCELLED' ? 'struck' : ''}>
-        <td>{receipt.receipt_no}{receipt.legacy_receipt_sources?.[0] && <div className="muted small">Paper {receipt.legacy_receipt_sources[0].paper_receipt_no || '—'}{receipt.legacy_receipt_sources[0].paper_book ? ` · ${receipt.legacy_receipt_sources[0].paper_book}` : ''}</div>}</td><td>{formatDate(receipt.receipt_date)}</td>
+        <td>{receipt.receipt_no}{receipt.legacy_receipt_sources?.[0] && <div className="muted small">Paper {receipt.legacy_receipt_sources[0].paper_receipt_no || '—'}{receipt.legacy_receipt_sources[0].paper_book ? ` · ${receipt.legacy_receipt_sources[0].paper_book}` : ''}{Number(receipt.legacy_receipt_sources[0].bp_adjustment) > 0 ? ` · BP adj. ${rupees(receipt.legacy_receipt_sources[0].bp_adjustment)}` : ''}{Number(receipt.legacy_receipt_sources[0].agent_commission_adjustment) > 0 ? ` · Agent commission adj. ${rupees(receipt.legacy_receipt_sources[0].agent_commission_adjustment)}` : ''}</div>}</td><td>{formatDate(receipt.receipt_date)}</td>
         <td>{receipt.memberships?.customers?.name} <span className="muted small">{receipt.memberships?.customers?.member_code}</span></td>
         <td>{receipt.memberships?.chit_groups?.series} #{receipt.memberships?.ticket_no}</td><td>{monthName(receipt.month_label)}</td>
         <td>{receipt.mode}{receipt.cheque_tracking && <div><Badge status={receipt.cheque_tracking.clearance_status} /></div>}</td><td className="r"><Money value={receipt.total} /></td>

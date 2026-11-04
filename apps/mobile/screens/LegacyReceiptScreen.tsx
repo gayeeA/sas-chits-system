@@ -56,6 +56,7 @@ export default function LegacyReceiptScreen({ navigation }: ScreenProps<'LegacyR
       p_receipt_date: form.date, p_mode: form.mode, p_bank: form.bank || null, p_ref_no: form.reference || null,
       p_received_by: form.receivedBy || null, p_notes: form.notes || null,
       p_paper_receipt_no: form.paperNo || null, p_paper_book: form.paperBook || null,
+      p_bp_adjustment: toPaise(form.bpAdjustment || 0), p_agent_commission_adjustment: toPaise(form.agentCommissionAdjustment || 0),
     })
     if (saveError) { setBusy(false); setError(supabaseErrorMessage(saveError.message)); return }
     if (photo && selected) {
@@ -83,19 +84,20 @@ export default function LegacyReceiptScreen({ navigation }: ScreenProps<'LegacyR
         <Text style={st.bt}>{busy ? 'Saving…' : 'Save'}</Text>
       </TouchableOpacity>
     </View>
-    <Text style={st.hint}>Records the original paper number and date, and applies the amount to the shared member ledger.</Text>
+    <Text style={st.hint}>Records the original paper details and adjustments. Only the payment amount is applied to the shared member ledger.</Text>
     {!!error && <Text accessibilityRole="alert" style={{ color: '#820F10', marginVertical: 8 }}>{error}</Text>}
     {!allowed ? null : !selected ? <>
-      <TextInput style={st.in} placeholder="Search member, ID, phone, group or ticket" value={query} onChangeText={setQuery} />
+      <TextInput style={st.in} placeholder="Search member, ID, phone, group or ticket" placeholderTextColor="#858585" value={query} onChangeText={setQuery} />
       {matches.map(d => <TouchableOpacity key={d.membership_id} style={st.card} onPress={() => { setSelected(d); setForm((f: any) => ({ ...f, month: d.current_month ?? '' })) }}>
         <Text style={st.name}>{d.name}</Text><Text style={st.hint}>{d.member_code} · {d.series} #{d.ticket_no}</Text>
       </TouchableOpacity>)}
     </> : <>
       <View style={st.card}><Text style={st.name}>{selected.name}</Text><Text>{selected.series} #{selected.ticket_no}</Text><Text style={st.hint}>Current outstanding: {rupees(selected.total_outstanding)}</Text><TouchableOpacity onPress={() => setSelected(null)}><Text style={{ color: '#2B1A6B', marginTop: 8 }}>Change member</Text></TouchableOpacity></View>
-      <Text style={st.lb}>Instalment month *</Text><View style={st.row}>{months.map(month => <TouchableOpacity key={month} style={[st.smallBtn, form.month === month && { backgroundColor: '#2B1A6B' }]} onPress={() => setForm({ ...form, month })}><Text style={form.month === month ? { color: '#fff' } : {}}>{month}</Text></TouchableOpacity>)}</View>
+      <Text style={st.lb}>Instalment month *</Text><View style={[st.row, { justifyContent: 'flex-start', flexWrap: 'wrap' }]}>{months.map(month => <TouchableOpacity key={month} style={[st.smallBtn, { marginBottom: 6 }, form.month === month && { backgroundColor: '#2B1A6B' }]} onPress={() => setForm({ ...form, month })}><Text style={form.month === month ? { color: '#fff' } : {}}>{month}</Text></TouchableOpacity>)}</View>
       {field('Paper receipt date (YYYY-MM-DD) *', 'date')}{field('Amount received (₹) *', 'amount', true)}
       {field('Original paper receipt number', 'paperNo')}{field('Receipt book / series', 'paperBook')}
-      <Text style={st.lb}>Payment method</Text><View style={st.row}>{PAYMENT_MODES.map(mode => <TouchableOpacity key={mode} style={[st.smallBtn, form.mode === mode && { backgroundColor: '#2B1A6B' }]} onPress={() => setForm({ ...form, mode })}><Text style={form.mode === mode ? { color: '#fff' } : {}}>{mode}</Text></TouchableOpacity>)}</View>
+      {field('BP adjustment (₹)', 'bpAdjustment', true)}{field('Agent commission adjustment (₹)', 'agentCommissionAdjustment', true)}
+      <Text style={st.lb}>Payment method</Text><View style={[st.row, { justifyContent: 'flex-start', flexWrap: 'wrap' }]}>{PAYMENT_MODES.map(mode => <TouchableOpacity key={mode} style={[st.smallBtn, { marginBottom: 6 }, form.mode === mode && { backgroundColor: '#2B1A6B' }]} onPress={() => setForm({ ...form, mode })}><Text style={form.mode === mode ? { color: '#fff' } : {}}>{mode}</Text></TouchableOpacity>)}</View>
       {form.mode !== 'Cash' && <>{field('Bank / UPI app', 'bank')}{field('Cheque / transaction reference', 'reference')}</>}
       {field('Collected by', 'receivedBy')}{field('Notes', 'notes', false)}
       <TouchableOpacity style={[st.smallBtn, { alignSelf: 'flex-start', marginVertical: 8 }]} onPress={scan}><Text>📷 Photograph paper receipt</Text></TouchableOpacity>

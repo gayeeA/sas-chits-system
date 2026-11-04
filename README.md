@@ -47,11 +47,11 @@ Permissions are enforced in the database (row-level security), not only hidden i
 3. **Required:** In a new SQL Editor query, paste all of `supabase/migrations/002_admin_features.sql` and click **Run**. The website and mobile app use objects added by this migration, including `member_outstanding`, `installment_status`, `dashboard_summary`, payouts, expenses, and audit logs. If the base schema was installed earlier, run this migration now. If financial records already exist, make a database backup first.
 4. Run `supabase/migrations/003_legacy_receipts.sql` after migration 002. It adds protected paper-receipt source details and the historical-payment RPC used by the website and phone.
 5. Run `supabase/migrations/004_member_followups.sql` after migration 003. It adds the shared call/visit/reminder log used by the phone and website.
-6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, and `007_receipt_scans.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, and a private receipt-photo bucket with metadata.
+6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, `007_receipt_scans.sql`, and `008_legacy_receipt_adjustments.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, private receipt photos, and BP/agent commission adjustment fields for paper receipts.
 7. In Authentication settings, disable public sign-up. Create the owner's account first; the database's signup trigger makes the first profile the owner.
 8. Keep the URL and anon key for both apps. Never put a service-role key in either client.
 
-The schema is a fresh-install script, not a migration. Do not run it again on a project that already contains business or financial records. Migrations 002–007 are additive; back up an existing database in Supabase before applying them.
+The schema is a fresh-install script, not a migration. Do not run it again on a project that already contains business or financial records. Migrations 002–008 are additive; back up an existing database in Supabase before applying them.
 
    The migration also fixes a bug in `schema.sql`: cancelling a receipt always failed with "Receipts are immutable", because the generated `total` column is not available inside the guard trigger.
 

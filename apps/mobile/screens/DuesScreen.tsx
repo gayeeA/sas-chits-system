@@ -81,9 +81,9 @@ export default function DuesScreen({ navigation }: ScreenProps<'Dues'>) {
   return <View style={st.page}>
     <TouchableOpacity style={st.homeBtn} onPress={() => navigation.goBack()}><Text style={st.homeBtnText}>‹ Home</Text></TouchableOpacity>
     <Text style={st.title}>Dues & collection</Text>
-    <TextInput style={st.in} placeholder="Search name, phone, ticket # or group" value={query} onChangeText={setQuery} />
+    <TextInput style={st.in} placeholder="Search name, phone, ticket # or group" placeholderTextColor="#858585" value={query} onChangeText={setQuery} />
     {offline && <View style={[st.card, { borderLeftWidth: 4, borderLeftColor: '#E8B43C' }]}><Text style={st.name}>Offline · cached member list</Text><Text style={st.hint}>{matches.length} matching cached tickets{cachedAt ? ` · saved ${new Date(cachedAt).toLocaleString()}` : ''}. Dues may have changed since this cache was saved.</Text></View>}
-    <View style={st.row}>{([['due', 'With dues'], ['overdue', 'Overdue'], ['paid', 'Paid'], ['all', 'All']] as const).map(([key, label]) =>
+    <View style={[st.row, { flexWrap: 'wrap' }]}>{([['due', 'With dues'], ['overdue', 'Overdue'], ['paid', 'Paid'], ['all', 'All']] as const).map(([key, label]) =>
       <TouchableOpacity key={key} style={[st.chip, filter === key && st.chipOn]} onPress={() => setFilter(key)}>
         <Text style={filter === key ? { color: '#fff' } : {}}>{label}</Text>
       </TouchableOpacity>)}</View>
@@ -93,8 +93,8 @@ export default function DuesScreen({ navigation }: ScreenProps<'Dues'>) {
       ListEmptyComponent={<Text>{loading ? 'Loading dues…' : 'No members found.'}</Text>}
       renderItem={({ item: due }) => <View style={st.card}>
         <TouchableOpacity onPress={() => navigation.navigate('Collect', { due })}>
-          <View style={st.row}><Text style={[st.name, { flex: 1 }]}>{due.name}</Text>
-            <Text style={[st.name, { color: due.total_outstanding ? '#820F10' : '#11734b' }]}>{due.total_outstanding ? rupees(due.total_outstanding) : 'Paid'}</Text></View>
+          <View style={st.row}><Text style={[st.name, { flex: 1, minWidth: 0, flexShrink: 1 }]}>{due.name}</Text>
+            <Text style={[st.name, { flexShrink: 0, color: due.total_outstanding ? '#820F10' : '#11734b' }]}>{due.total_outstanding ? rupees(due.total_outstanding) : 'Paid'}</Text></View>
           <Text style={st.hint}>{due.series} #{due.ticket_no} · {due.member_code}{due.phone ? ` · ${due.phone}` : ''}</Text>
           {due.total_outstanding > 0 ? (
             <Text>Previous {rupees(due.arrears)} + this month {rupees(due.current_balance)}
@@ -103,13 +103,13 @@ export default function DuesScreen({ navigation }: ScreenProps<'Dues'>) {
             <Text style={{ color: '#11734b', fontSize: 13 }}>Up to date · No pending dues</Text>
           )}
         </TouchableOpacity>
-        <View style={[st.row, { marginTop: 8, justifyContent: 'flex-start' }]}>
+        <View style={[st.row, { marginTop: 8, justifyContent: 'flex-start', flexWrap: 'wrap', rowGap: 6 }]}>
           <TouchableOpacity style={st.smallBtn} onPress={() => navigation.navigate('Followups', { due })}><Text>📝 Reason</Text></TouchableOpacity>
           {!!phoneDigits(due.phone) && <TouchableOpacity style={st.smallBtn} onPress={() => open(`tel:+${phoneDigits(due.phone)}`)}><Text>Call</Text></TouchableOpacity>}
           {!!phoneDigits(due.phone) && due.total_outstanding > 0 && <TouchableOpacity style={[st.smallBtn, { backgroundColor: '#e7f8ee' }]}
             onPress={() => sendReminder(due)}>
             <Text style={{ color: '#0b6b37' }}>Chat</Text></TouchableOpacity>}
-          <TouchableOpacity style={[st.smallBtn, { backgroundColor: '#E10F17', marginLeft: 'auto' }]} onPress={() => navigation.navigate('Collect', { due })}>
+          <TouchableOpacity style={[st.smallBtn, { backgroundColor: '#E10F17' }]} onPress={() => navigation.navigate('Collect', { due })}>
             <Text style={{ color: '#fff' }}>Collect</Text></TouchableOpacity>
         </View>
       </View>}

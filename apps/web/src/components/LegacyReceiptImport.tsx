@@ -17,6 +17,8 @@ const FIELDS = [
   ['amount', 'Amount received (₹)', ['amount', 'amount received', 'paid', 'paid amount', 'received', 'collection', 'total']],
   ['receipt', 'Paper receipt number', ['receipt', 'receipt no', 'receipt number', 'bill no']],
   ['book', 'Receipt book / series', ['book', 'book no', 'receipt book', 'receipt series']],
+  ['bp_adjustment', 'BP adjustment (₹)', ['bp adjustment', 'bp adj', 'bp adjustment amount']],
+  ['agent_commission_adjustment', 'Agent commission adjustment (₹)', ['agent commission adjustment', 'agent commission adj', 'commission adjustment', 'agent commision adjustment', 'agent commission adjustment amount']],
   ['mode', 'Payment method', ['mode', 'payment mode', 'payment method']],
   ['bank', 'Bank / UPI app', ['bank', 'bank name', 'upi app']],
   ['reference', 'Transaction / cheque reference', ['reference', 'reference no', 'transaction id', 'cheque no', 'utr']],
@@ -37,7 +39,7 @@ const suggest = (headers: string[]): Mapping => {
   }
   return out
 }
-const TEMPLATE = [{ member_code: 'M0001', group: 'SL-01', ticket: 1, month: '2026-01', date: '05/01/2026', amount: 5000, receipt: '15100', book: 'Old Book 1', mode: 'Cash', bank: '', reference: '', received_by: 'Collector name', notes: '' }]
+const TEMPLATE = [{ member_code: 'M0001', group: 'SL-01', ticket: 1, month: '2026-01', date: '05/01/2026', amount: 5000, receipt: '15100', book: 'Old Book 1', bp_adjustment: 0, agent_commission_adjustment: 0, mode: 'Cash', bank: '', reference: '', received_by: 'Collector name', notes: '' }]
 
 export default function LegacyReceiptImport({ onDone }: { onDone: () => void }) {
   const [file, setFile] = useState<{ name: string; headers: string[]; rows: Record<string, unknown>[] } | null>(null)
@@ -85,6 +87,14 @@ export default function LegacyReceiptImport({ onDone }: { onDone: () => void }) 
       const amountRaw = String(get(raw, 'amount') ?? '').replace(/[₹,\s]/g, '')
       const amountRupees = Number(amountRaw)
       if (!Number.isFinite(amountRupees) || amountRupees <= 0) errors.push('Amount must be a positive number in rupees')
+      const adjustmentRupees = (key: 'bp_adjustment' | 'agent_commission_adjustment', label: string) => {
+        const rawValue = String(get(raw, key) ?? '').replace(/[₹,\s]/g, '')
+        const value = rawValue ? Number(rawValue) : 0
+        if (!Number.isFinite(value) || value < 0) errors.push(`${label} must be zero or a positive amount in rupees`)
+        return Number.isFinite(value) && value >= 0 ? toPaise(value) : 0
+      }
+      const bpAdjustment = adjustmentRupees('bp_adjustment', 'BP adjustment')
+      const agentCommissionAdjustment = adjustmentRupees('agent_commission_adjustment', 'Agent commission adjustment')
       const modeInput = String(get(raw, 'mode') ?? 'Cash').trim().toLowerCase()
       const mode = PAYMENT_MODES.find(m => m.toLowerCase() === modeInput) ?? (modeInput === 'bank' || modeInput === 'transfer' ? 'Bank Transfer' : modeInput === 'cheque' ? 'Cheque' : modeInput === 'upi' ? 'UPI' : 'Cash')
       if (modeInput && !PAYMENT_MODES.some(m => m.toLowerCase() === modeInput) && !['bank', 'transfer'].includes(modeInput)) warnings.push(`Payment mode “${modeInput}” will be saved as Cash; check this row`)
@@ -93,6 +103,7 @@ export default function LegacyReceiptImport({ onDone }: { onDone: () => void }) 
         amount: Number.isFinite(amountRupees) ? toPaise(amountRupees) : 0, mode,
         paper_receipt_no: String(get(raw, 'receipt') ?? '').trim() || null,
         paper_book: String(get(raw, 'book') ?? '').trim() || null,
+        bp_adjustment: bpAdjustment, agent_commission_adjustment: agentCommissionAdjustment,
         bank: String(get(raw, 'bank') ?? '').trim() || null, ref_no: String(get(raw, 'reference') ?? '').trim() || null,
         received_by: String(get(raw, 'received_by') ?? '').trim() || null, notes: String(get(raw, 'notes') ?? '').trim() || null,
       } }
@@ -121,6 +132,7 @@ export default function LegacyReceiptImport({ onDone }: { onDone: () => void }) 
         p_receipt_date: row.data.receipt_date, p_mode: row.data.mode, p_bank: row.data.bank,
         p_ref_no: row.data.ref_no, p_received_by: row.data.received_by, p_notes: row.data.notes,
         p_paper_receipt_no: row.data.paper_receipt_no, p_paper_book: row.data.paper_book, p_source_file: file.name,
+        p_bp_adjustment: row.data.bp_adjustment, p_agent_commission_adjustment: row.data.agent_commission_adjustment,
       })
       if (saveError) failed.push({ line: row.line, message: `Row ${row.line}${row.data.paper_receipt_no ? ` (receipt ${row.data.paper_receipt_no})` : ''}: ${errorText(saveError)}` })
       else saved++
@@ -134,14 +146,14 @@ export default function LegacyReceiptImport({ onDone }: { onDone: () => void }) 
   </div>
 
   return <div className="form">
-    {!file && <><p>Import old payment rows from Excel/CSV. The preview checks members and totals first. Payments are recorded through the normal ledger rules; paper receipt numbers are kept as source details.</p>
+    {!file && <><p>Import old payment rows from Excel/CSV. The preview checks members, totals, and paper receipt adjustments first. Payments are recorded through the normal ledger rules; paper receipt numbers and adjustment amounts are kept as source details.</p>
       <div className="bar"><button onClick={() => downloadXlsx('historical-payment-import-template', [{ name: 'Payments', rows: TEMPLATE, columns: FIELDS.map(([key, label]) => ({ label, value: (r: any) => r[key] ?? '' })) }])}>⬇ Download template</button>
         <label className="btn pri file-btn">Choose Excel / CSV file<input type="file" accept=".xlsx,.xls,.csv" onChange={e => choose(e.target.files?.[0])} /></label></div></>}
     <ErrorMessage>{error || tickets.error || installments.error}</ErrorMessage>
     {file && <><p><b>{file.name}</b> · {file.rows.length} rows <button className="small" onClick={() => setFile(null)}>Choose another file</button></p>
       <h3>Match the spreadsheet columns</h3><div className="grid map-grid">{FIELDS.map(([key, label]) => <label key={key}><span>{label}</span><select value={mapping[key] ?? ''} onChange={e => setMapping({ ...mapping, [key]: e.target.value || undefined })}><option value="">— not in file —</option>{file.headers.map(h => <option key={h}>{h}</option>)}</select></label>)}</div>
       <h3>Review before import</h3><p>{importRows.length} ready · {rows.length - importRows.length} blocked · {rows.filter(r => !r.errors.length && r.warnings.length).length} need attention</p>
-      {rows.length ? <div className="table-wrap import-preview"><table><thead><tr><th>Row</th><th>Member</th><th>Month</th><th>Date</th><th>Paper receipt</th><th className="r">Amount</th><th>Check</th></tr></thead><tbody>{rows.map(r => <tr key={r.line} className={r.errors.length ? 'skip-row' : ''}><td>{r.line}</td><td>{r.membershipId ? (tickets.data?.find(t => t.id === r.membershipId)?.chit_groups.series ?? '') + ' #' + (tickets.data?.find(t => t.id === r.membershipId)?.ticket_no ?? '') : '—'}</td><td>{r.data.month_label || '—'}</td><td>{r.data.receipt_date || '—'}</td><td>{r.data.paper_book ? `${r.data.paper_book} / ` : ''}{r.data.paper_receipt_no || '—'}</td><td className="r">{r.data.amount ? (r.data.amount / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) : '—'}</td><td className="small">{r.errors.length ? <><Badge status="OVERDUE">Blocked</Badge> {r.errors.join(' · ')}</> : r.warnings.length ? r.warnings.join(' · ') : 'Ready'}</td></tr>)}</tbody></table></div> : <Empty>No rows.</Empty>}
+      {rows.length ? <div className="table-wrap import-preview"><table><thead><tr><th>Row</th><th>Member</th><th>Month</th><th>Date</th><th>Paper receipt</th><th className="r">Amount</th><th className="r">BP adj.</th><th className="r">Agent commission adj.</th><th>Check</th></tr></thead><tbody>{rows.map(r => <tr key={r.line} className={r.errors.length ? 'skip-row' : ''}><td>{r.line}</td><td>{r.membershipId ? (tickets.data?.find(t => t.id === r.membershipId)?.chit_groups.series ?? '') + ' #' + (tickets.data?.find(t => t.id === r.membershipId)?.ticket_no ?? '') : '—'}</td><td>{r.data.month_label || '—'}</td><td>{r.data.receipt_date || '—'}</td><td>{r.data.paper_book ? `${r.data.paper_book} / ` : ''}{r.data.paper_receipt_no || '—'}</td><td className="r">{r.data.amount ? (r.data.amount / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) : '—'}</td><td className="r">{(r.data.bp_adjustment / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td><td className="r">{(r.data.agent_commission_adjustment / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td><td className="small">{r.errors.length ? <><Badge status="OVERDUE">Blocked</Badge> {r.errors.join(' · ')}</> : r.warnings.length ? r.warnings.join(' · ') : 'Ready'}</td></tr>)}</tbody></table></div> : <Empty>No rows.</Empty>}
       {busy && <p>{progress}</p>}<div className="bar"><button className="pri" disabled={busy || !importRows.length || !tickets.data?.length || !installments.data} onClick={run}>{busy ? 'Importing…' : `Record ${importRows.length} payments`}</button></div>
     </>}
   </div>

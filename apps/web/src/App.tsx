@@ -189,7 +189,7 @@ function AppLayout() {
     </nav>
     {receipt && <div className="modal receipt-modal" role="dialog" aria-modal="true" aria-label={`Receipt ${receipt.receipt_no}`}>
       <div className="modal-box wide"><div ref={receiptImageRef} style={{ padding: 12, background: '#fff' }}><div dangerouslySetInnerHTML={{ __html: receiptHtml(receipt, '/logo.jpg') }} /></div>
-        {receipt.legacy_receipt_sources?.[0] && <p className="muted">Entered from paper receipt {receipt.legacy_receipt_sources[0].paper_receipt_no || 'without a number'}{receipt.legacy_receipt_sources[0].paper_book ? ` · ${receipt.legacy_receipt_sources[0].paper_book}` : ''}</p>}
+        {receipt.legacy_receipt_sources?.[0] && <p className="muted">Entered from paper receipt {receipt.legacy_receipt_sources[0].paper_receipt_no || 'without a number'}{receipt.legacy_receipt_sources[0].paper_book ? ` · ${receipt.legacy_receipt_sources[0].paper_book}` : ''}{Number(receipt.legacy_receipt_sources[0].bp_adjustment) > 0 ? ` · BP adjustment ${rupees(receipt.legacy_receipt_sources[0].bp_adjustment)}` : ''}{Number(receipt.legacy_receipt_sources[0].agent_commission_adjustment) > 0 ? ` · Agent commission adjustment ${rupees(receipt.legacy_receipt_sources[0].agent_commission_adjustment)}` : ''}</p>}
         {receipt.payment_allocations?.length > 0 && <section className="card alloc-screen"><h3>How this payment was applied</h3>
           <table><thead><tr><th>Month</th><th>Applied to</th><th>Amount</th></tr></thead>
             <tbody>{receipt.payment_allocations.map((allocation: any, index: number) =>

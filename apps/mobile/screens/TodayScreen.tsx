@@ -224,6 +224,7 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
       <TextInput
         style={st.in}
         placeholder="Search today's receipts by name or receipt #"
+        placeholderTextColor="#858585"
         value={search}
         onChangeText={setSearch}
       />
@@ -256,7 +257,7 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
             <Text style={st.hint}>
               Receipt #{r.receipt_no}
               {r.legacy_receipt_sources?.[0]
-                ? ` · Paper ${r.legacy_receipt_sources[0].paper_receipt_no || "—"}`
+                ? ` · Paper ${r.legacy_receipt_sources[0].paper_receipt_no || "—"}${Number(r.legacy_receipt_sources[0].bp_adjustment) > 0 ? ` · BP adj. ${rupees(r.legacy_receipt_sources[0].bp_adjustment)}` : ''}${Number(r.legacy_receipt_sources[0].agent_commission_adjustment) > 0 ? ` · Agent commission adj. ${rupees(r.legacy_receipt_sources[0].agent_commission_adjustment)}` : ''}`
                 : ""}{" "}
               · {r.memberships?.chit_groups?.series} #{r.memberships?.ticket_no}{" "}
               · {monthName(r.month_label)} · {r.mode}
