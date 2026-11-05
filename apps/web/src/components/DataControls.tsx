@@ -24,7 +24,7 @@ export function useQueryRows(table: string, select = '*', order?: string) {
 
 type Values = Record<string, any>
 
-export function Field({ label, name, values, setValues, type = 'text', placeholder, required, hint, min, step, disabled }: {
+export function Field({ label, name, values, setValues, type = 'text', placeholder, required, hint, min, max, step, disabled }: {
   label: string
   name: string
   values: Values
@@ -34,11 +34,12 @@ export function Field({ label, name, values, setValues, type = 'text', placehold
   required?: boolean
   hint?: string
   min?: number
+  max?: number
   step?: string
   disabled?: boolean
 }) {
   return <label><span>{label}{required && <i className="req"> *</i>}</span><input type={type} value={values[name] ?? ''} placeholder={placeholder} disabled={disabled}
-    min={min} step={step ?? (type === 'number' ? 'any' : undefined)} inputMode={type === 'number' ? 'decimal' : undefined}
+    min={min} max={max} step={step ?? (type === 'number' ? 'any' : undefined)} inputMode={type === 'number' ? 'decimal' : undefined}
     onChange={event => setValues({ ...values, [name]: event.target.value })} />{hint && <small className="muted">{hint}</small>}</label>
 }
 

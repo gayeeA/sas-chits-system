@@ -1,20 +1,18 @@
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { currentMonth, dateInMonth, formatDate, monthName, nextDateForDay, rupees, todayISO } from '../chit'
-import { useReceiptView } from '../App'
+import { useAppLayout, useReceiptView } from '../App'
+import { BACKUP_KEY } from '../lib/notifications'
 import { fetchAll, must, RECEIPT_SELECT, useAsync, useAuth } from '../lib/data'
 import { Badge, Empty, Loading, Money, PageHeader, Stat } from '../components/ui'
 import { ErrorMessage } from '../components/DataControls'
-
-export const BACKUP_KEY = 'sas-last-backup'
-
-type Alert = { tone: 'bad' | 'warn' | 'info'; text: string; to?: string }
 
 export default function DashboardPage() {
   const month = currentMonth()
   const today = todayISO()
   const auth = useAuth()
   const { showReceipt } = useReceiptView()
+  const { notifications: alerts } = useAppLayout()
 
   const { data, error, loading } = useAsync(async () => {
     const [summary, groups, auctions, memberships, recent] = await Promise.all([
@@ -31,32 +29,6 @@ export default function DashboardPage() {
   const groups = data?.groups ?? []
   const active = groups.filter(g => g.status === 'ACTIVE')
   const auctionsByGroup = (groupId: string) => (data?.auctions ?? []).filter(a => a.group_id === groupId)
-  const ticketsByGroup = (groupId: string) => (data?.memberships ?? []).filter(m => m.group_id === groupId && m.status === 'ACTIVE').length
-
-  const alerts: Alert[] = []
-  if (s) {
-    if (s.overdue_members > 0) alerts.push({ tone: 'bad', text: `${s.overdue_members} tickets have overdue dues totalling ${rupees(s.overdue_total)}.`, to: '/dues' })
-    if (s.pending_payouts > 0) alerts.push({ tone: 'warn', text: `${s.pending_payouts} lift winner(s) not yet paid out.`, to: '/payouts' })
-  }
-  for (const g of active) {
-    const done = auctionsByGroup(g.id)
-    const thisMonth = done.find(a => a.month_label === month)
-    const started = !g.start_date || g.start_date.slice(0, 7) <= month
-    if (done.length >= g.months) alerts.push({ tone: 'info', text: `${g.series} has finished all ${g.months} months — mark it Completed.`, to: `/groups/${g.id}` })
-    else if (started && !thisMonth && g.auction_day && dateInMonth(month, g.auction_day) < today)
-      alerts.push({ tone: 'warn', text: `${g.series}: ${monthName(month)} auction date has passed but no auction is recorded.`, to: '/auctions' })
-    const vacant = (g.member_count ?? g.months) - ticketsByGroup(g.id)
-    if (vacant > 0) alerts.push({ tone: 'info', text: `${g.series} has ${vacant} vacant ticket(s).`, to: `/groups/${g.id}` })
-    if ((g.rule_config?.prized_member_instalment ?? 'unset') === 'unset')
-      alerts.push({ tone: 'warn', text: `${g.series}: set the prized-member instalment rule before its next auction.`, to: `/groups/${g.id}` })
-  }
-  if (auth.isOwner) {
-    let last = ''
-    try { last = localStorage.getItem(BACKUP_KEY) || '' } catch { /* storage unavailable */ }
-    const days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 86400000) : null
-    if (days === null || days >= 7) alerts.push({ tone: 'warn', text: days === null ? 'No backup downloaded on this computer yet. Download one from Settings.' : `Last backup was ${days} days ago. Download a fresh backup.`, to: '/settings' })
-  }
-
   const upcoming = active.flatMap(g => {
     const rows: Array<{ date: string; what: string; group: any }> = []
     if (auctionsByGroup(g.id).length < g.months) {

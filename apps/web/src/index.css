@@ -25,6 +25,9 @@ label.check{font-size:14px;color:var(--text)}.req{color:var(--red);font-style:no
 .topbar img{width:38px;height:38px;border-radius:50%}.topbar b{flex:1;font-size:16px}
 .topbar .who{display:flex;flex-direction:column;align-items:flex-end;font-size:13px;color:#e9e7f3}.topbar .who small{color:var(--gold)}
 .topbar .signout{background:transparent;color:var(--gold);border-color:var(--gold)}
+.topbar .notification-button{position:relative;display:grid;place-items:center;width:38px;height:38px;padding:7px;background:transparent;color:#fff;border-color:#ffffff44}
+.notification-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.notification-count{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 4px;display:grid;place-items:center;border-radius:10px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:1}
 .menu-btn{display:none;background:transparent;color:#fff;border-color:#ffffff44;font-size:18px}
 .sidebar{position:fixed;top:57px;left:0;bottom:0;width:var(--side);background:#fff;border-right:1px solid var(--bd);overflow-y:auto;z-index:15}
 .sidebar nav{display:flex;flex-direction:column;padding:10px 8px;gap:2px}
@@ -77,6 +80,9 @@ tfoot td{font-weight:700;border-top:2px solid var(--navy);background:#fbfafd}
 .alerts li{padding:8px 10px;border-radius:8px;border-left:4px solid}.alerts a{color:inherit;text-decoration:none}.alerts a:hover{text-decoration:underline}
 .alerts .bad{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}.alerts .warn{background:var(--warn-bg);border-color:var(--gold);color:var(--warn)}
 .alerts .info{background:var(--info-bg);border-color:var(--navy);color:var(--info)}
+.notifications-list li{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.notification-content{display:flex;flex-direction:column;gap:4px;min-width:0}
+.notification-read{opacity:.68}
 .rules-summary{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:14px}
 .contact{display:inline-flex;gap:4px}
 

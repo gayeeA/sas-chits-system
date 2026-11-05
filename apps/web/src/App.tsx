@@ -3,7 +3,8 @@ import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocat
 import { supabase, supabaseConfigured } from './supabase'
 import { rupees, receiptHtml, receiptWhatsAppText } from './chit'
 import { shareElementAsImage } from './lib/shareImage'
-import { Auth, AuthContext, Profile, ROLE_LABEL, useAuth } from './lib/data'
+import { Auth, AuthContext, Profile, ROLE_LABEL, useAsync, useAuth } from './lib/data'
+import { fetchNotifications, NotificationItem, notificationId } from './lib/notifications'
 import AuctionsPage from './pages/AuctionsPage'
 import CollectPage from './pages/CollectPage'
 import DashboardPage from './pages/DashboardPage'
@@ -18,11 +19,26 @@ import PayoutsPage from './pages/PayoutsPage'
 import ReceiptsPage from './pages/ReceiptsPage'
 import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
+import NotificationsPage from './pages/NotificationsPage'
 
 export type Receipt = Record<string, any>
-type LayoutContext = { showReceipt: (receipt: Receipt) => void }
+export type LayoutContext = {
+  showReceipt: (receipt: Receipt) => void
+  notifications: NotificationItem[]
+  notificationsLoading: boolean
+  notificationsError: string
+  reloadNotifications: () => Promise<void>
+  readNotificationIds: string[]
+  unreadNotifications: number
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: () => void
+}
 
 export function useReceiptView() {
+  return useOutletContext<LayoutContext>()
+}
+
+export function useAppLayout() {
   return useOutletContext<LayoutContext>()
 }
 
@@ -68,6 +84,7 @@ export default function App() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/expenses" element={<ExpensesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
       </Route>
       <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />
     </Routes>
@@ -127,6 +144,7 @@ const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: '▦' },
   { to: '/collect', label: 'Record Payment', icon: '₹' },
   { to: '/dues', label: 'Dues & Follow-up', icon: '!' },
+  { to: '/notifications', label: 'Notifications', icon: '!' },
   { to: '/groups', label: 'Chit Groups', icon: '◎' },
   { to: '/members', label: 'Members', icon: '☺' },
   { to: '/auctions', label: 'Auctions / Lifts', icon: '⚑' },
@@ -146,9 +164,39 @@ function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const auth = useAuth()
+  const [readState, setReadState] = useState<{ userId: string; ids: string[] }>(() => ({ userId: auth.userId, ids: [] }))
+  const { data: notifications = [], error: notificationsError, loading: notificationsLoading, reload: reloadNotifications } = useAsync(
+    () => fetchNotifications(auth.isOwner), [auth.isOwner])
+  const readNotificationIds = readState.userId === auth.userId ? readState.ids : []
+  const readSet = new Set(readNotificationIds)
+  const unreadNotifications = notifications.filter(item => !readSet.has(notificationId(item))).length
   const items = NAV.filter(item => !item.manager || auth.isManager)
 
   useEffect(() => { setMenuOpen(false) }, [location.pathname])
+  useEffect(() => {
+    if (readState.userId === auth.userId) return
+    try {
+      const saved = JSON.parse(localStorage.getItem(`sas-read-notifications:${auth.userId}`) || '[]')
+      setReadState({ userId: auth.userId, ids: Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [] })
+    } catch (error) {
+      console.error('Could not load notification read status', error)
+      setReadState({ userId: auth.userId, ids: [] })
+    }
+  }, [auth.userId, readState.userId])
+  useEffect(() => {
+    if (readState.userId !== auth.userId) return
+    try { localStorage.setItem(`sas-read-notifications:${auth.userId}`, JSON.stringify(readState.ids)) }
+    catch (error) { console.error('Could not save notification read status', error) }
+  }, [auth.userId, readState])
+
+  const markNotificationRead = (id: string) => {
+    setReadState(current => current.userId === auth.userId
+      ? { ...current, ids: current.ids.includes(id) ? current.ids : [...current.ids, id] }
+      : { userId: auth.userId, ids: [id] })
+  }
+  const markAllNotificationsRead = () => {
+    setReadState({ userId: auth.userId, ids: notifications.map(notificationId) })
+  }
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
@@ -170,6 +218,11 @@ function AppLayout() {
       <img src="/logo.jpg" alt="" />
       <b>Sri AndeSivaiah Chits</b>
       <span className="who">{auth.displayName}{auth.profile && <small>{ROLE_LABEL[auth.profile.role]}</small>}</span>
+      <button className="notification-button" aria-label={`Notifications${unreadNotifications ? `, ${unreadNotifications} unread` : ''}`}
+        title="Notifications" onClick={() => navigate('/notifications')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+        {unreadNotifications > 0 && <span className="notification-count">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}
+      </button>
       <button className="signout" onClick={signOut}>Sign out</button>
     </header>
     <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
@@ -180,7 +233,10 @@ function AppLayout() {
       </nav>
     </aside>
     {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} />}
-    <main><Outlet context={{ showReceipt: setReceipt }} /></main>
+    <main><Outlet context={{
+      showReceipt: setReceipt, notifications, notificationsLoading, notificationsError, reloadNotifications,
+      readNotificationIds, unreadNotifications, markNotificationRead, markAllNotificationsRead,
+    }} /></main>
     <nav className="quickbar" aria-label="Quick navigation">{NAV.filter(item => QUICK_NAV.includes(item.to)).map(item =>
       <NavLink key={item.to} to={item.to} className={({ isActive }) => isActive ? 'on' : ''}>
         <span aria-hidden>{item.icon}</span>{item.label.split(' ')[0]}

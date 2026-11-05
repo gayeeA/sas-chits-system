@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { CHIT_RULES, formatDate, groupEndMonth, monthName, reminderText, rupees, todayISO } from '../chit'
+import { CHIT_RULES, currentMonth, dateInMonth, formatDate, groupEndMonth, monthName, reminderText, rupees, todayISO, phoneDigits, whatsappLink } from '../chit'
 import { errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
 import { Badge, ConfirmModal, ContactButtons, Empty, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
 import { ErrorMessage, Field, SelectField } from '../components/DataControls'
@@ -14,6 +14,9 @@ export default function GroupDetailPage() {
   const [tab, setTab] = useState<'tickets' | 'ledger' | 'auctions'>('tickets')
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [selectedReminderIds, setSelectedReminderIds] = useState<string[]>([])
+  const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([])
+  const [showReminders, setShowReminders] = useState(false)
   const [replacingTicket, setReplacingTicket] = useState<any>(null)
   const [confirmation, setConfirmation] = useState<{
     title: string; message: string; confirmLabel: string; action: () => Promise<boolean>
@@ -38,9 +41,13 @@ export default function GroupDetailPage() {
   const { group: g, tickets, ledger, auctions, payouts } = data
   const rules = { ...CHIT_RULES.defaultGroupConfig, ...(g.rule_config ?? {}) }
   const activeTickets = tickets.filter(t => t.membership_status === 'ACTIVE')
+  const reminderTickets = activeTickets.filter(t => phoneDigits(t.phone))
+  const selectedReminderTickets = reminderTickets.filter(t => selectedReminderIds.includes(t.membership_id))
+  const selectedTickets = tickets.filter(t => selectedTicketIds.includes(t.membership_id))
   const months = [...new Set(ledger.map(l => l.month_label))].sort()
   const outstanding = tickets.reduce((sum, t) => sum + Number(t.total_outstanding), 0)
   const liftedIn = (membershipId: string) => auctions.find(a => a.winner_membership === membershipId)?.month_label
+  const dueDate = dateInMonth(currentMonth(), g.due_day)
 
   const setTicketStatus = async (ticket: any, status: 'ACTIVE' | 'WITHDRAWN') => {
     if (status === 'WITHDRAWN') {
@@ -67,12 +74,35 @@ export default function GroupDetailPage() {
     setError('')
     setConfirmation({
       title: 'Remove member from ticket?',
-      message: `Remove ${ticket.name} from ticket #${ticket.ticket_no}? This is only possible before any instalment is created.`,
+      message: `Remove ${ticket.name} from ticket #${ticket.ticket_no}? This permanently frees the ticket number, but is only possible when the ticket has no linked records. Withdraw the ticket instead to preserve its history.`,
       confirmLabel: 'Remove ticket',
       action: async () => {
         const { error: deleteError } = await supabase.from('memberships').delete().eq('id', ticket.membership_id)
-        setError(deleteError ? (/foreign key/i.test(deleteError.message) ? 'This ticket already has instalments or payments. Mark it Withdrawn instead.' : errorText(deleteError)) : '')
+        setError(deleteError ? (/foreign key/i.test(deleteError.message)
+          ? 'This ticket has linked financial or follow-up history and cannot be removed. Withdraw it to keep its records.'
+          : errorText(deleteError)) : '')
         if (deleteError) return false
+        await reload()
+        return true
+      },
+    })
+  }
+  const removeSelectedTickets = () => {
+    if (!selectedTickets.length) return
+    setError('')
+    setConfirmation({
+      title: 'Remove selected members from group?',
+      message: `Permanently remove ${selectedTickets.length} selected ticket${selectedTickets.length === 1 ? '' : 's'} from ${g.series}? This frees their ticket numbers. Tickets with financial, auction, payout, or follow-up history cannot be removed; use Withdraw to preserve those records.`,
+      confirmLabel: 'Remove selected',
+      action: async () => {
+        const { error: deleteError } = await supabase.from('memberships')
+          .delete().in('id', selectedTickets.map(ticket => ticket.membership_id))
+        setError(deleteError ? (/foreign key/i.test(deleteError.message)
+          ? 'One or more selected tickets have linked history and cannot be removed. No selected tickets were removed; withdraw tickets with history instead.'
+          : errorText(deleteError)) : '')
+        if (deleteError) return false
+        setSelectedTicketIds([])
+        setSelectedReminderIds(ids => ids.filter(id => !selectedTickets.some(ticket => ticket.membership_id === id)))
         await reload()
         return true
       },
@@ -132,12 +162,37 @@ export default function GroupDetailPage() {
     <ErrorMessage>{error}</ErrorMessage>
 
     {tab === 'tickets' && <section className="card">
-      <div className="card-head"><h3>Tickets / members</h3>
-        {auth.isOwner && <button className="pri" onClick={() => setAdding(true)}>+ Add member to group</button>}</div>
+      <div className="card-head"><h3>Tickets / members</h3><div className="bar">
+        {selectedReminderTickets.length > 0 && <button className="wa" onClick={() => setShowReminders(true)}>
+          Prepare bulk reminder ({selectedReminderTickets.length})
+        </button>}
+        {auth.isOwner && selectedTickets.length > 0 && <button className="danger" onClick={removeSelectedTickets}>
+          Remove selected ({selectedTickets.length})
+        </button>}
+        {auth.isOwner && <button className="pri" onClick={() => setAdding(true)}>+ Add member to group</button>}
+      </div></div>
       {tickets.length ? <div className="table-wrap"><table>
-        <thead><tr><th>Ticket</th><th>Member</th><th>Lifted</th><th className="r">Total paid</th><th className="r">Previous due</th>
+        <thead><tr>{auth.isOwner && <th><input type="checkbox" aria-label="Select all tickets for removal"
+          checked={tickets.length > 0 && tickets.every(t => selectedTicketIds.includes(t.membership_id))}
+          onChange={e => setSelectedTicketIds(e.target.checked ? tickets.map(t => t.membership_id) : [])} /></th>}
+          <th><input type="checkbox" aria-label="Select all active members with phone numbers"
+          checked={reminderTickets.length > 0 && reminderTickets.every(t => selectedReminderIds.includes(t.membership_id))}
+          onChange={e => setSelectedReminderIds(e.target.checked ? reminderTickets.map(t => t.membership_id) : [])} /></th>
+          <th>Ticket</th><th>Member</th><th>Lifted</th><th className="r">Total paid</th><th className="r">Previous due</th>
           <th className="r">This month</th><th className="r">Outstanding</th><th>Follow up</th>{auth.isOwner && <th />}</tr></thead>
         <tbody>{tickets.map(t => <tr key={t.membership_id} className={t.membership_status === 'WITHDRAWN' ? 'struck' : ''}>
+          {auth.isOwner && <td><input type="checkbox" aria-label={`Select ticket #${t.ticket_no} for removal`}
+            checked={selectedTicketIds.includes(t.membership_id)}
+            onChange={e => setSelectedTicketIds(ids => e.target.checked
+              ? [...new Set([...ids, t.membership_id])]
+              : ids.filter(id => id !== t.membership_id))} /></td>}
+          <td>{t.membership_status === 'ACTIVE' && phoneDigits(t.phone)
+            ? <input type="checkbox" aria-label={`Select ${t.name} for reminder`}
+              checked={selectedReminderIds.includes(t.membership_id)}
+              onChange={e => setSelectedReminderIds(ids => e.target.checked
+                ? [...new Set([...ids, t.membership_id])]
+                : ids.filter(id => id !== t.membership_id))} />
+            : <span className="muted" title={t.membership_status === 'WITHDRAWN' ? 'Withdrawn tickets are not included' : 'No phone number'}>—</span>}</td>
           <td>#{t.ticket_no}</td>
           <td><Link to={`/members/${t.customer_id}`}>{t.name}</Link> <span className="muted small">{t.member_code}</span>
             {t.membership_status === 'WITHDRAWN' && <> <Badge status="WITHDRAWN" /></>}</td>
@@ -148,9 +203,10 @@ export default function GroupDetailPage() {
           <td className="r">{t.total_outstanding ? <Money value={t.total_outstanding} strong /> : '—'}</td>
           <td>{t.total_outstanding > 0 && <ContactButtons phone={t.phone} message={reminderText({ name: t.name, amount: t.total_outstanding, series: g.series })} />}</td>
           {auth.isOwner && <td>{t.membership_status === 'ACTIVE'
-            ? (months.length ? <button className="small" onClick={() => setTicketStatus(t, 'WITHDRAWN')}>Withdraw</button>
-              : <button className="small" onClick={() => removeTicket(t)}>Remove</button>)
-            : <button className="small" onClick={() => setTicketStatus(t, 'ACTIVE')}>Re-activate</button>}
+            ? <><button className="small" onClick={() => setTicketStatus(t, 'WITHDRAWN')}>Withdraw</button>
+              <button className="small danger" onClick={() => removeTicket(t)}>Remove</button></>
+            : <><button className="small" onClick={() => setTicketStatus(t, 'ACTIVE')}>Re-activate</button>
+              <button className="small danger" onClick={() => removeTicket(t)}>Remove</button></>}
             <button className="small" onClick={() => setReplacingTicket(t)}>Change member / ticket</button></td>}
         </tr>)}</tbody></table></div> : <Empty>No members in this group yet.</Empty>}
     </section>}
@@ -198,17 +254,41 @@ export default function GroupDetailPage() {
         onSaved={async () => { setAdding(false); await reload() }} />
     </Modal>}
     {replacingTicket && <Modal title={`Change ticket #${replacingTicket.ticket_no}`} onClose={() => setReplacingTicket(null)}>
-      <ChangeTicket ticket={replacingTicket} taken={tickets.map(t => t.ticket_no)}
+      <ChangeTicket ticket={replacingTicket} taken={tickets.map(t => t.ticket_no)} ticketLimit={g.member_count ?? g.months}
         onSaved={async () => { setReplacingTicket(null); await reload() }} />
     </Modal>}
     {confirmation && <ConfirmModal title={confirmation.title} message={confirmation.message}
       confirmLabel={confirmation.confirmLabel} danger busy={confirming} error={error}
       onCancel={() => { if (!confirming) setConfirmation(null) }}
       onConfirm={() => { void runConfirmation() }} />}
+    {showReminders && <Modal title={`First-of-month reminders · ${g.series}`} wide onClose={() => setShowReminders(false)}>
+      <div className="form">
+        <p className="muted">Prepared for {monthName(currentMonth())}. The payment due date is {formatDate(dueDate)}.
+          This creates one combined WhatsApp message with each selected member’s name and amount. Choose the appropriate WhatsApp group or chat, then review and send it manually.</p>
+        <div className="timeline">{selectedReminderTickets.map(t => {
+          return <article className="card" key={t.membership_id}>
+            <div className="card-head"><b>#{t.ticket_no} · {t.name}</b></div>
+            <p className="muted small">Monthly instalment: {rupees(g.gross_installment)} · Current outstanding: {rupees(t.total_outstanding)}</p>
+          </article>
+        })}</div>
+        <a className="btn wa" href={whatsappLink(undefined, [
+          `Monthly payment reminder · ${g.series} · ${monthName(currentMonth())}`,
+          `Due date: ${formatDate(dueDate)}`,
+          `Standard monthly instalment: ${rupees(g.gross_installment)} per ticket (before dividend adjustment).`,
+          '',
+          ...selectedReminderTickets.map(t =>
+            `#${t.ticket_no} ${t.name}: current outstanding ${rupees(t.total_outstanding)}; monthly instalment ${rupees(g.gross_installment)}.`),
+          '',
+          'Please contact Sri AndeSivaiah Chits if you need help.',
+        ].join('\n'))} target="_blank" rel="noreferrer">Open one WhatsApp message for all selected members</a>
+      </div>
+    </Modal>}
   </>
 }
 
-function ChangeTicket({ ticket, taken, onSaved }: { ticket: any; taken: number[]; onSaved: () => void }) {
+function ChangeTicket({ ticket, taken, ticketLimit, onSaved }: {
+  ticket: any; taken: number[]; ticketLimit: number; onSaved: () => void
+}) {
   const { data: members } = useAsync(() => fetchAll(() => supabase.from('customers')
     .select('id,name,member_code,phone').eq('status', 'ACTIVE').order('name')), [])
   const [memberSearch, setMemberSearch] = useState('')
@@ -236,12 +316,14 @@ function ChangeTicket({ ticket, taken, onSaved }: { ticket: any; taken: number[]
     <div className="grid">
       <SelectField label="Member" name="customerId" values={form} setValues={setForm} required
         options={options.map(m => [m.id, `${m.name} (${m.member_code}${m.phone ? ', ' + m.phone : ''})`])} />
-      <Field label="Ticket number" name="ticketNo" values={form} setValues={setForm} type="number" required min={1} />
+      <Field label="Ticket number" name="ticketNo" values={form} setValues={setForm} type="number" required min={1} max={ticketLimit} />
     </div>
+    <p className="muted small">Ticket numbers must be between 1 and {ticketLimit}.</p>
     {Number(form.ticketNo) !== ticket.ticket_no && taken.includes(Number(form.ticketNo)) &&
       <p className="warn-text">Ticket #{form.ticketNo} is already assigned in this group.</p>}
     <div className="bar">
-      <button className="pri" disabled={busy || !form.customerId || !Number(form.ticketNo) ||
+      <button className="pri" disabled={busy || !form.customerId || Number(form.ticketNo) < 1 ||
+        Number(form.ticketNo) > ticketLimit ||
         (Number(form.ticketNo) !== ticket.ticket_no && taken.includes(Number(form.ticketNo)))} onClick={() => { void save() }}>
         {busy ? 'Saving…' : 'Save ticket assignment'}
       </button>
@@ -254,7 +336,10 @@ function AddTicket({ group, taken, activeCustomerIds, onSaved }: {
   group: any; taken: number[]; activeCustomerIds: string[]; onSaved: () => void
 }) {
   const { data: members } = useAsync(() => fetchAll(() => supabase.from('customers').select('id,name,member_code,phone').eq('status', 'ACTIVE').order('name')), [])
-  const firstFree = Array.from({ length: (group.member_count ?? group.months) + taken.length }, (_, i) => i + 1).find(n => !taken.includes(n)) ?? 1
+  const ticketLimit = group.member_count ?? group.months
+  const firstFree = Array.from({ length: ticketLimit }, (_, i) => i + 1).find(n => !taken.includes(n)) ?? ''
+  const isFull = activeCustomerIds.length >= ticketLimit
+  const noTicketNumber = firstFree === ''
   const [form, setForm] = useState<any>({ ticket: firstFree, joinedOn: todayISO() })
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
@@ -263,6 +348,12 @@ function AddTicket({ group, taken, activeCustomerIds, onSaved }: {
     `${m.name} ${m.member_code} ${m.phone ?? ''}`.toLowerCase().includes(search.toLowerCase()))
 
   const save = async () => {
+    if (Number(form.ticket) < 1 || Number(form.ticket) > ticketLimit || isFull || noTicketNumber) {
+      setError(isFull ? 'All group tickets are currently filled.' : noTicketNumber
+        ? 'No ticket number is available. Remove an unlinked ticket or increase the group ticket limit.'
+        : `Ticket number must be between 1 and ${ticketLimit}.`)
+      return
+    }
     setBusy(true)
     const { error: insertError } = await supabase.from('memberships').insert({
       customer_id: form.customerId, group_id: group.id, ticket_no: Number(form.ticket), joined_on: form.joinedOn || null,
@@ -275,15 +366,20 @@ function AddTicket({ group, taken, activeCustomerIds, onSaved }: {
   }
   return <div className="form">
     <p className="muted small">New member? <Link to="/members?new=1">Add them on the Members page</Link> first.</p>
+    <p className="muted small">Ticket numbers must be between 1 and {ticketLimit}. Withdrawn tickets keep their number if they have history; remove a ticket only when it has no linked records.</p>
+    {isFull
+      ? <p className="warn-text">All {ticketLimit} active tickets are currently filled.</p>
+      : noTicketNumber && <p className="warn-text">No ticket number is available. Remove an unlinked ticket or increase the group ticket limit.</p>}
     <input type="search" placeholder="Search member by name, ID or phone" value={search} onChange={e => setSearch(e.target.value)} />
     <div className="grid">
       <SelectField label="Member" name="customerId" values={form} setValues={setForm} required
         options={options.map(m => [m.id, `${m.name} (${m.member_code}${m.phone ? ', ' + m.phone : ''})`])} />
-      <Field label="Ticket number" name="ticket" values={form} setValues={setForm} type="number" required />
+      <Field label="Ticket number" name="ticket" values={form} setValues={setForm} type="number" required min={1} max={ticketLimit} disabled={isFull || noTicketNumber} />
       <Field label="Joining date" name="joinedOn" values={form} setValues={setForm} type="date" />
     </div>
     {taken.length > 0 && <p className="muted small">Taken tickets: {[...taken].sort((a, b) => a - b).join(', ')}</p>}
-    <div className="bar"><button className="pri" disabled={busy || !form.customerId || !Number(form.ticket)} onClick={save}>{busy ? 'Saving…' : 'Add to group'}</button>
+    <div className="bar"><button className="pri" disabled={busy || isFull || noTicketNumber || !form.customerId || !Number(form.ticket) ||
+      Number(form.ticket) > ticketLimit || Number(form.ticket) < 1} onClick={save}>{busy ? 'Saving…' : 'Add to group'}</button>
       <ErrorMessage>{error}</ErrorMessage></div>
   </div>
 }

@@ -4,7 +4,7 @@ import { COMPANY, rupees, todayISO } from '../chit'
 import { downloadFile, errorText, fetchAll, must, ROLE_LABEL, useAsync, useAuth } from '../lib/data'
 import { Empty, Loading, PageHeader, Tabs } from '../components/ui'
 import { ErrorMessage, SuccessMessage } from '../components/DataControls'
-import { BACKUP_KEY } from './DashboardPage'
+import { BACKUP_KEY } from '../lib/notifications'
 
 type Tab = 'account' | 'users' | 'audit' | 'backup'
 const BACKUP_TABLES = ['customers', 'chit_groups', 'memberships', 'auctions', 'auction_bids', 'installments', 'receipts', 'payment_allocations',
