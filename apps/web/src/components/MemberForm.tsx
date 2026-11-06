@@ -11,7 +11,8 @@ export default function MemberForm({ member, onSaved, onCancel }: { member?: any
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const phoneOk = !form.phone || form.phone.replace(/\D/g, '').length >= 10
-  const panOk = !form.pan || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.pan.trim().toUpperCase())
+  const pan = typeof form.pan === 'string' ? form.pan.trim() : ''
+  const panOk = !pan || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan.toUpperCase())
 
   const save = async () => {
     setBusy(true)
@@ -41,7 +42,7 @@ export default function MemberForm({ member, onSaved, onCancel }: { member?: any
     <div className="grid"><TextArea label="Address" name="address" values={form} setValues={setForm} /></div>
     <h3>Documents</h3>
     <div className="grid">
-      <Field label="PAN" name="pan" values={form} setValues={setForm} hint={panOk ? undefined : 'Format: ABCDE1234F'} />
+      <Field label="PAN (optional)" name="pan" values={form} setValues={setForm} hint={panOk ? undefined : 'Format: ABCDE1234F'} />
       <Field label="Aadhaar / ID reference" name="id_proof_ref" values={form} setValues={setForm}
         hint="Store only the last 4 digits or a file reference, not the full number" />
     </div>
