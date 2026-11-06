@@ -152,10 +152,7 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
       })
     setSaving(false)
     if (result.error) {
-      const message = result.error.message.includes('memberships_one_active_ticket_per_member_group')
-        ? 'This member already has an active ticket in this group.'
-        : supabaseErrorMessage(result.error.message)
-      Alert.alert('Could not save ticket', message)
+      Alert.alert('Could not save ticket', supabaseErrorMessage(result.error.message))
     } else {
       setTicketForm(null)
       setTargetCustomer('')
@@ -173,14 +170,8 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
         : memberTickets.some(ticket => ticket.membership_status === ticketStatus)))
       && (!q || searchText.includes(q))
   })
-  const memberOptions = members.filter(member => {
-    const alreadyActiveInGroup = tickets.some(ticket =>
-      ticket.group_id === groupId && ticket.customer_id === member.id &&
-      ticket.membership_status === 'ACTIVE' &&
-      (ticketForm?.mode !== 'replace' || ticket.membership_id !== ticketForm.ticket?.membership_id))
-    return member.status === 'ACTIVE' && !alreadyActiveInGroup &&
-      `${member.name} ${member.member_code ?? ''} ${member.phone ?? ''}`.toLowerCase().includes(q)
-  })
+  const memberOptions = members.filter(member => member.status === 'ACTIVE' &&
+    `${member.name} ${member.member_code ?? ''} ${member.phone ?? ''}`.toLowerCase().includes(q))
   const selectedMember = members.find(member => member.id === targetCustomer)
   const groupName = (group: GroupRow) => `${group.series}${group.name ? ` · ${group.name}` : ''}`
 
@@ -273,6 +264,7 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
       </>}
       {ticketForm && selectedGroup && <View style={st.card}>
         <Text style={st.name}>{ticketForm.mode === 'replace' ? 'Change ticket assignment' : 'Add a member to the group'}</Text>
+        {ticketForm.mode === 'add' && <Text style={st.hint}>A member can hold multiple tickets in this group.</Text>}
         {ticketForm.mode === 'replace' && <Text style={st.hint}>A ticket can be reassigned only if it has no installment, payment, auction, payout, or follow-up history.</Text>}
         <TextInput style={[st.in, { marginTop: 10 }]} placeholder="Find active member by name, ID or phone" value={search} onChangeText={value => {
           setSearch(value)

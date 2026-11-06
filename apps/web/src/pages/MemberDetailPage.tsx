@@ -270,9 +270,8 @@ function AssignGroup({ memberId, onSaved }: { memberId: string; onSaved: () => v
   return <div className="form">
     <div className="grid">
       <SelectField label="Group" name="groupId" values={form} setValues={chooseGroup} required
-        options={(data?.groups ?? []).filter(g => !(data?.tickets ?? []).some(t =>
-          t.group_id === g.id && t.customer_id === memberId && t.status === 'ACTIVE'))
-          .map(g => [g.id, `${g.series}${g.name ? ' · ' + g.name : ''} (${(data?.tickets ?? []).filter(t => t.group_id === g.id).length}/${g.member_count ?? g.months})`])} />
+        options={(data?.groups ?? []).map(g => [g.id,
+          `${g.series}${g.name ? ' · ' + g.name : ''} (${(data?.tickets ?? []).filter(t => t.group_id === g.id).length}/${g.member_count ?? g.months})`])} />
       <Field label="Ticket number" name="ticket" values={form} setValues={chooseGroup} type="number" required />
       <Field label="Joining date" name="joinedOn" values={form} setValues={chooseGroup} type="date" />
     </div>

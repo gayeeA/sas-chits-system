@@ -249,8 +249,7 @@ export default function GroupDetailPage() {
       <GroupForm group={g} locked={auctions.length > 0} onCancel={() => setEditing(false)} onSaved={async () => { setEditing(false); await reload() }} />
     </Modal>}
     {adding && <Modal title={`Add member to ${g.series}`} onClose={() => setAdding(false)}>
-      <AddTicket group={g} taken={tickets.map(t => t.ticket_no)}
-        activeCustomerIds={tickets.filter(t => t.membership_status === 'ACTIVE').map(t => t.customer_id)}
+      <AddTicket group={g} taken={tickets.map(t => t.ticket_no)} activeTicketCount={activeTickets.length}
         onSaved={async () => { setAdding(false); await reload() }} />
     </Modal>}
     {replacingTicket && <Modal title={`Change ticket #${replacingTicket.ticket_no}`} onClose={() => setReplacingTicket(null)}>
@@ -332,19 +331,19 @@ function ChangeTicket({ ticket, taken, ticketLimit, onSaved }: {
   </div>
 }
 
-function AddTicket({ group, taken, activeCustomerIds, onSaved }: {
-  group: any; taken: number[]; activeCustomerIds: string[]; onSaved: () => void
+function AddTicket({ group, taken, activeTicketCount, onSaved }: {
+  group: any; taken: number[]; activeTicketCount: number; onSaved: () => void
 }) {
   const { data: members } = useAsync(() => fetchAll(() => supabase.from('customers').select('id,name,member_code,phone').eq('status', 'ACTIVE').order('name')), [])
   const ticketLimit = group.member_count ?? group.months
   const firstFree = Array.from({ length: ticketLimit }, (_, i) => i + 1).find(n => !taken.includes(n)) ?? ''
-  const isFull = activeCustomerIds.length >= ticketLimit
+  const isFull = activeTicketCount >= ticketLimit
   const noTicketNumber = firstFree === ''
   const [form, setForm] = useState<any>({ ticket: firstFree, joinedOn: todayISO() })
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const options = (members ?? []).filter(m => !activeCustomerIds.includes(m.id) &&
+  const options = (members ?? []).filter(m =>
     `${m.name} ${m.member_code} ${m.phone ?? ''}`.toLowerCase().includes(search.toLowerCase()))
 
   const save = async () => {
@@ -359,13 +358,12 @@ function AddTicket({ group, taken, activeCustomerIds, onSaved }: {
       customer_id: form.customerId, group_id: group.id, ticket_no: Number(form.ticket), joined_on: form.joinedOn || null,
     })
     setBusy(false)
-    if (insertError) setError(/memberships_one_active_ticket_per_member_group/i.test(insertError.message)
-      ? 'This member already has an active ticket in this group.'
-      : /unique/i.test(insertError.message) ? `Ticket #${form.ticket} is already taken in this group.` : errorText(insertError))
+    if (insertError) setError(/unique/i.test(insertError.message)
+      ? `Ticket #${form.ticket} is already taken in this group.` : errorText(insertError))
     else onSaved()
   }
   return <div className="form">
-    <p className="muted small">New member? <Link to="/members?new=1">Add them on the Members page</Link> first.</p>
+    <p className="muted small">A member can hold multiple tickets in this group. New member? <Link to="/members?new=1">Add them on the Members page</Link> first.</p>
     <p className="muted small">Ticket numbers must be between 1 and {ticketLimit}. Withdrawn tickets keep their number if they have history; remove a ticket only when it has no linked records.</p>
     {isFull
       ? <p className="warn-text">All {ticketLimit} active tickets are currently filled.</p>
