@@ -7,6 +7,7 @@ import { Badge, ConfirmModal, Empty, ExportButton, Loading, Modal, Money, PageHe
 import { ErrorMessage } from '../components/DataControls'
 import MemberForm from '../components/MemberForm'
 import MemberImport from '../components/MemberImport'
+import { MEMBER_PROFILE_FIELDS, missingMemberProfileFields } from '../lib/memberProfile'
 
 export default function MembersPage() {
   const navigate = useNavigate()
@@ -15,6 +16,8 @@ export default function MembersPage() {
   const [status, setStatus] = useState('ACTIVE')
   const [groupId, setGroupId] = useState('')
   const [ticketStatus, setTicketStatus] = useState('')
+  const [profileFilter, setProfileFilter] = useState('')
+  const [missingFieldFilter, setMissingFieldFilter] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
@@ -61,13 +64,20 @@ export default function MembersPage() {
     await reload()
   }
   const q = search.trim().toLowerCase()
-  const rows = (data?.members ?? []).filter(m =>
+  const baseRows = (data?.members ?? []).filter(m =>
     (!status || m.status === status) &&
     (!groupId || ticketsOf(m.id).some(t => t.group_id === groupId)) &&
     (!ticketStatus || (ticketStatus === 'NONE'
       ? ticketsOf(m.id).length === 0
       : ticketsOf(m.id).some(t => t.membership_status === ticketStatus))) &&
     (!q || `${m.name} ${m.member_code} ${m.phone ?? ''} ${m.alt_phone ?? ''} ${ticketsOf(m.id).map(t => `${t.series} #${t.ticket_no} ${t.ticket_no}`).join(' ')}`.toLowerCase().includes(q)))
+  const missingByMember = new Map((data?.members ?? []).map(m => [m.id, missingMemberProfileFields(m)]))
+  const incompleteCount = baseRows.filter(m => (missingByMember.get(m.id)?.length ?? 0) > 0).length
+  const rows = baseRows.filter(m => {
+    const missing = missingByMember.get(m.id) ?? []
+    return (!profileFilter || missing.length > 0) &&
+      (!missingFieldFilter || missing.some(field => field.key === missingFieldFilter))
+  })
   const outstandingOf = (id: string) => ticketsOf(id).reduce((sum, t) => sum + Number(t.total_outstanding), 0)
 
   return <>
@@ -101,6 +111,30 @@ export default function MembersPage() {
         <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="">All</option>
       </select>
     </div>
+    {data && <details className="card profile-audit">
+      <summary>
+        <b>Profile completeness</b>
+        <span className="muted small">{incompleteCount} incomplete of {baseRows.length} matching members</span>
+      </summary>
+      <div className="filters">
+        <label className="inline">Show
+          <select value={profileFilter} onChange={e => setProfileFilter(e.target.value)} aria-label="Profile completeness">
+            <option value="">All profiles</option>
+            <option value="INCOMPLETE">Incomplete profiles only</option>
+          </select>
+        </label>
+        <label className="inline">Missing field
+          <select value={missingFieldFilter} onChange={e => {
+            setMissingFieldFilter(e.target.value)
+            if (e.target.value) setProfileFilter('INCOMPLETE')
+          }} aria-label="Filter by missing profile field">
+            <option value="">Any recommended field</option>
+            {MEMBER_PROFILE_FIELDS.map(field => <option key={field.key} value={field.key}>{field.label}</option>)}
+          </select>
+        </label>
+        <span className="muted small">PAN, alternate phone, email, and notes are optional and are not checked.</span>
+      </div>
+    </details>}
     <ErrorMessage>{error}</ErrorMessage>
     <Loading show={loading && !data} />
     {data && (rows.length ? <section className="card"><div className="table-wrap"><table>
@@ -109,7 +143,8 @@ export default function MembersPage() {
         onChange={e => setSelectedIds(e.target.checked
           ? [...new Set([...selectedIds, ...rows.map(m => m.id)])]
           : selectedIds.filter(id => !rows.some(m => m.id === id)))} /></th>}
-        <th>ID</th><th>Name</th><th>Phone</th><th>Groups / tickets</th><th>Joined</th><th className="r">Outstanding</th><th>Status</th></tr></thead>
+        <th>ID</th><th>Name</th><th>Phone</th>{(profileFilter || missingFieldFilter) && <th>Missing details</th>}
+        <th>Groups / tickets</th><th>Joined</th><th className="r">Outstanding</th><th>Status</th></tr></thead>
       <tbody>{rows.map(m => {
         const due = outstandingOf(m.id)
         return <tr key={m.id} className="clickable" onClick={() => navigate(`/members/${m.id}`)}>
@@ -122,6 +157,9 @@ export default function MembersPage() {
           <td>{m.member_code}</td>
           <td><Link to={`/members/${m.id}`}><b>{m.name}</b></Link></td>
           <td>{m.phone || '—'}</td>
+          {(profileFilter || missingFieldFilter) && <td className="small warn-text">
+            {(missingByMember.get(m.id) ?? []).map(field => field.label).join(', ')}
+          </td>}
           <td>{ticketsOf(m.id).map(t => `${t.series} #${t.ticket_no}`).join(', ') || <span className="muted">Not in a group</span>}</td>
           <td>{formatDate(m.joining_date)}</td>
           <td className="r">{due ? <Money value={due} strong /> : '—'}</td>

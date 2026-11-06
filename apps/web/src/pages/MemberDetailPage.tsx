@@ -135,6 +135,7 @@ export default function MemberDetailPage() {
   return <>
     <PageHeader title={m.name} subtitle={`${m.member_code} · joined ${formatDate(m.joining_date)}`}
       actions={<>
+        <Link className="btn" to="/members">← Back to Members</Link>
         <Badge status={m.status} />
         {m.phone && <button className="btn wa" onClick={() => { void shareStatement() }}>💬 Chat statement image</button>}
         <ContactButtons phone={m.phone} message={outstanding ? reminderText({ name: m.name, amount: outstanding }) : `Namaste ${m.name} garu, `} />

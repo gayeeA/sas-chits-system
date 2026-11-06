@@ -46,6 +46,7 @@ main{margin-left:var(--side);padding:20px 24px 60px;max-width:calc(1280px + var(
 .form h3{margin-top:14px;font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}.form h3:first-child{margin-top:0}
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}.filters input[type=search]{min-width:220px;flex:1;max-width:360px}
+.profile-audit summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px}.profile-audit .filters{margin:12px 0 0}
 .empty{padding:22px;text-align:center;color:var(--muted);background:#faf9fc;border:1px dashed var(--bd);border-radius:10px;margin:0}
 
 /* Stats */

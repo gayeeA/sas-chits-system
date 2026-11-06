@@ -137,6 +137,7 @@ export default function GroupDetailPage() {
     <PageHeader title={`${g.series}${g.name ? ' · ' + g.name : ''}`}
       subtitle={`${rupees(g.chit_value)} chit · ${g.months} months · ${rupees(g.gross_installment)} per month`}
       actions={<>
+        <Link className="btn" to="/groups">← Back to Groups</Link>
         <Badge status={g.status} />
         {auth.isManager && <button onClick={() => setEditing(true)}>Edit group</button>}
         {auth.isOwner && <button onClick={() => { void deleteGroup() }}>Delete empty group</button>}
