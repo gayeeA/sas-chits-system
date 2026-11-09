@@ -18,7 +18,7 @@ This is an office tool for the chit-fund owner and staff only. Members (customer
 | `/groups`, `/groups/:id` | Chit Groups | Create/edit groups and their rules, tickets, month-by-month ledger, auction history; owners can bulk-remove tickets without linked history and prepare one combined WhatsApp reminder listing selected members |
 | `/members`, `/members/:id` | Members | Add/edit/deactivate members (ID, phone, address, PAN, ID reference, nominee), **bulk import from Excel/CSV** (template and row-by-row check), merge duplicate member records while preserving their group tickets/history, bulk-delete members without group-ticket history, assign to groups, instalment/payment/lift history |
 | `/auctions` | Auctions / Lifts | Record bids, winner, discount, commission and dividend with the calculation shown step by step |
-| `/payouts` | Payouts | Winners waiting for payment, payout with deductions, printable voucher, history |
+| `/payouts` | Payouts | Winners waiting for payment, payout with deductions, printable voucher, history, and a paid/unpaid prize-money report with 0.9% GST |
 | `/receipts` | Receipts | Receipt register with filters; owner cancels with a reason (never deletes) |
 | `/reports` | Reports (manager) | Month/week/day summary, collection (all or Cash/UPI/Bank/Cheque), group-wise, member payments, pending dues, defaulters, auctions, payouts, group summary, income vs expenses. Quick periods (this week, last month, financial year…). Excel, Word and print/PDF, plus a one-click “Everything” Excel workbook |
 | `/expenses` | Expenses (manager) | Office expenses and other income, kept separate from collections |
@@ -49,7 +49,7 @@ Permissions are enforced in the database (row-level security), not only hidden i
 3. **Required:** In a new SQL Editor query, paste all of `supabase/migrations/002_admin_features.sql` and click **Run**. The website and mobile app use objects added by this migration, including `member_outstanding`, `installment_status`, `dashboard_summary`, payouts, expenses, and audit logs. If the base schema was installed earlier, run this migration now. If financial records already exist, make a database backup first.
 4. Run `supabase/migrations/003_legacy_receipts.sql` after migration 002. It adds protected paper-receipt source details and the historical-payment RPC used by the website and phone.
 5. Run `supabase/migrations/004_member_followups.sql` after migration 003. It adds the shared call/visit/reminder log used by the phone and website.
-6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, `007_receipt_scans.sql`, `008_legacy_receipt_adjustments.sql`, `009_owner_member_group_management.sql`, `010_bulk_member_delete.sql`, `011_merge_duplicate_members.sql`, and `012_multiple_tickets_per_member.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, private receipt photos, BP/agent commission adjustment fields for paper receipts, owner-only member/group deletion and ticket reassignment safeguards, atomic bulk member deletion plus group ticket-number limits, safe merging of duplicate member records, and support for multiple tickets per member in a group.
+6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, `007_receipt_scans.sql`, `008_legacy_receipt_adjustments.sql`, `009_owner_member_group_management.sql`, `010_bulk_member_delete.sql`, `011_merge_duplicate_members.sql`, `012_multiple_tickets_per_member.sql`, and `013_auction_and_ticket_edits.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, private receipt photos, BP/agent commission adjustment fields for paper receipts, owner-only member/group deletion and ticket reassignment safeguards, atomic bulk member deletion plus group ticket-number limits, safe merging of duplicate member records, support for multiple tickets per member in a group, and safe auction editing/deletion and ticket-number changes.
 7. In Authentication settings, disable public sign-up. Create the owner's account first; the database's signup trigger makes the first profile the owner.
 8. Keep the URL and anon key for both apps. Never put a service-role key in either client.
 
@@ -175,7 +175,7 @@ Nothing about the chit agreement is assumed; each group stores its own rules and
 - Dividend per member is **suggested** as (discount − commission) ÷ members, rounded down to the rupee, and can be overwritten with the agreed figure.
 - Prized member instalment: "net" or "full instalment in the month they lift". The full-instalment rule currently applies only to the month of the lift (as in the original design); if the agreement says prized members pay the full instalment for all later months, that needs a change.
 - Penalty, grace days and dividend forfeiture.
-- Auction terms, receipts and payouts cannot be edited after saving; receipts/payouts/expenses are cancelled with a reason and re-entered. Every change is in Settings → Change history.
+- Auction terms can be corrected while no payout or collection is linked; otherwise only auction date and notes remain editable. Auction deletion is blocked when financial history exists. Receipts and payouts are cancelled with a reason and re-entered. Every change is in Settings → Change history.
 
 ## Current verification and limitations
 

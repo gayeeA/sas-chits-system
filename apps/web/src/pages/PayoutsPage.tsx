@@ -3,14 +3,34 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { amountInWords, COMPANY, formatDate, monthName, PAYMENT_MODES, rupees, toPaise, toRupees, todayISO } from '../chit'
 import { csvRupees, errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
-import { Badge, Empty, ExportButton, Loading, Modal, Money, PageHeader } from '../components/ui'
+import { Badge, Empty, ExportButton, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
 import { ErrorMessage, Field, TextArea } from '../components/DataControls'
+import { downloadXlsx } from '../lib/excel'
+import { buildPrizeMoneyReport, PrizeReportRow } from '../lib/prizeMoneyReport'
 
 const PAYOUT_SELECT = '*, auctions(month_label, discount_bid), memberships(ticket_no, customers(name, member_code, phone)), chit_groups(series, name)'
+
+const PRIZE_REPORT_COLUMNS = [
+  { label: 'S.NO', value: (row: PrizeReportRow) => row.serial },
+  { label: 'AUCTION DATE', value: (row: PrizeReportRow) => row.auctionDate },
+  { label: 'GRP NO', value: (row: PrizeReportRow) => row.group },
+  { label: 'TK NO', value: (row: PrizeReportRow) => row.ticket },
+  { label: 'NAME', value: (row: PrizeReportRow) => row.member },
+  { label: 'CHEQ NO', value: (row: PrizeReportRow) => row.chequeNo },
+  { label: 'CHIT VALUE (₹)', value: (row: PrizeReportRow) => row.chitValue },
+  { label: 'F.MAN COMN (₹)', value: (row: PrizeReportRow) => row.foremanCommission },
+  { label: 'DISCOUNT (₹)', value: (row: PrizeReportRow) => row.discount },
+  { label: 'SERVICE TAX / GST (₹)', value: (row: PrizeReportRow) => row.gst },
+  { label: 'PRIZE AMOUNT (₹)', value: (row: PrizeReportRow) => row.prizeAmount },
+  { label: 'CHEQUE AMOUNT (₹)', value: (row: PrizeReportRow) => row.chequeAmount },
+  { label: 'FOREMAN DIV (₹)', value: (row: PrizeReportRow) => row.foremanDividend },
+  { label: 'REMARKS', value: (row: PrizeReportRow) => row.remarks },
+]
 
 export default function PayoutsPage() {
   const auth = useAuth()
   const [params, setParams] = useSearchParams()
+  const [view, setView] = useState<'payouts' | 'prize-report'>('payouts')
   const auctionId = params.get('auction') || ''
   const [groupId, setGroupId] = useState('')
   const [voucher, setVoucher] = useState<any>(null)
@@ -29,6 +49,21 @@ export default function PayoutsPage() {
   const pending = (data?.auctions ?? []).filter(a => !activeFor(a.id) && (!groupId || a.group_id === groupId))
   const history = (data?.payouts ?? []).filter(p => !groupId || p.group_id === groupId)
   const selected = data?.auctions.find(a => a.id === auctionId)
+  const reportAuctions = (data?.auctions ?? []).filter(a =>
+    a.winner_membership && (!groupId || a.group_id === groupId))
+  const { paid: paidReportRows, unpaid: unpaidReportRows } =
+    buildPrizeMoneyReport(reportAuctions, data?.payouts ?? [])
+
+  const exportPrizeReport = async () => {
+    try {
+      await downloadXlsx('prize-money-report', [
+        { name: 'Paid Prizes', rows: paidReportRows, columns: PRIZE_REPORT_COLUMNS },
+        { name: 'Unpaid Prizes', rows: unpaidReportRows, columns: PRIZE_REPORT_COLUMNS },
+      ])
+    } catch (e) {
+      setError(`Could not create the prize money Excel report: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
 
   const cancel = async (payout: any) => {
     const reason = window.prompt(`Cancel payout voucher ${payout.voucher_no}? Enter the reason:`)
@@ -39,15 +74,21 @@ export default function PayoutsPage() {
   }
 
   return <>
-    <PageHeader title="Payouts" subtitle="Money paid to lift winners"
-      actions={<ExportButton filename="payouts.csv" rows={history} columns={[
+    <PageHeader title={view === 'payouts' ? 'Payouts' : 'Prize money report'}
+      subtitle={view === 'payouts' ? 'Money paid to lift winners' : `Paid and unpaid prizes · GST at 0.9% of chit value · ${formatDate(todayISO())}`}
+      actions={view === 'payouts' ? <ExportButton filename="payouts.csv" rows={history} columns={[
         { label: 'Voucher', value: p => p.voucher_no }, { label: 'Date', value: p => p.payout_date }, { label: 'Group', value: p => p.chit_groups?.series },
         { label: 'Month', value: p => p.auctions?.month_label }, { label: 'Member', value: p => p.memberships?.customers?.name },
         { label: 'Ticket', value: p => p.memberships?.ticket_no }, { label: 'Gross (₹)', value: p => csvRupees(p.gross_amount) },
         { label: 'Bid/discount (₹)', value: p => csvRupees(p.bid_discount) }, { label: 'Commission (₹)', value: p => csvRupees(p.commission) },
         { label: 'Other deductions (₹)', value: p => csvRupees(p.other_deductions) }, { label: 'Net payout (₹)', value: p => csvRupees(p.net_payout) },
         { label: 'Mode', value: p => p.mode }, { label: 'Reference', value: p => p.ref_no }, { label: 'Status', value: p => p.status },
-      ]} />} />
+      ]} /> : <>
+        <button onClick={() => { void exportPrizeReport() }}>⬇ Excel report</button>
+        <button onClick={() => window.print()}>Print / PDF</button>
+      </>} />
+    <Tabs value={view} onChange={setView} tabs={[['payouts', 'Payouts'], ['prize-report', 'Prize money report']]} />
+    {view === 'payouts' && <>
     <div className="filters">
       <select value={groupId} onChange={e => setGroupId(e.target.value)} aria-label="Group">
         <option value="">All groups</option>{data?.groups.map(g => <option key={g.id} value={g.id}>{g.series}</option>)}
@@ -86,7 +127,35 @@ export default function PayoutsPage() {
           </tr>)}</tbody></table></div> : <Empty>No payouts recorded yet.</Empty>}
       </section>
     </>}
-    {selected && <Modal title="Record payout" wide onClose={() => setParams({})}>
+    </>}
+    {view === 'prize-report' && <>
+      <div className="filters no-print">
+        <select value={groupId} onChange={e => setGroupId(e.target.value)} aria-label="Group">
+          <option value="">All groups</option>{data?.groups.map(g => <option key={g.id} value={g.id}>{g.series}</option>)}
+        </select>
+      </div>
+      <ErrorMessage>{loadError || error}</ErrorMessage>
+      <Loading show={loading && !data} />
+      {data && <div className="prize-report">
+        <section className="card">
+          <h2>Paid prizes ({paidReportRows.length})</h2>
+          {paidReportRows.length ? <div className="table-wrap"><table className="prize-report-table">
+            <thead><tr>{PRIZE_REPORT_COLUMNS.map(column => <th key={column.label}>{column.label}</th>)}</tr></thead>
+            <tbody>{paidReportRows.map(row => <PrizeReportTableRow key={`${row.group}-${row.serial}`} row={row} />)}</tbody>
+            <PrizeReportTotals rows={paidReportRows} />
+          </table></div> : <Empty>No paid prizes for this filter.</Empty>}
+        </section>
+        <section className="card">
+          <h2>Unpaid prizes ({unpaidReportRows.length})</h2>
+          {unpaidReportRows.length ? <div className="table-wrap"><table className="prize-report-table">
+            <thead><tr>{PRIZE_REPORT_COLUMNS.map(column => <th key={column.label}>{column.label}</th>)}</tr></thead>
+            <tbody>{unpaidReportRows.map(row => <PrizeReportTableRow key={`${row.group}-${row.serial}`} row={row} />)}</tbody>
+            <PrizeReportTotals rows={unpaidReportRows} />
+          </table></div> : <Empty>No unpaid prizes for this filter.</Empty>}
+        </section>
+      </div>}
+    </>}
+    {selected && view === 'payouts' && <Modal title="Record payout" wide onClose={() => setParams({})}>
       <PayoutForm auction={selected} onSaved={async payout => { setParams({}); await reload(); setVoucher(payout) }} />
     </Modal>}
     {voucher && <Modal title={`Payout voucher ${voucher.voucher_no}`} wide onClose={() => setVoucher(null)}>
@@ -94,6 +163,34 @@ export default function PayoutsPage() {
       <div className="bar no-print"><button className="pri" onClick={() => window.print()}>Print / Save PDF</button><button onClick={() => setVoucher(null)}>Close</button></div>
     </Modal>}
   </>
+}
+
+function PrizeReportTableRow({ row }: { row: PrizeReportRow }) {
+  return <tr>
+    <td>{row.serial}</td><td>{row.auctionDate}</td><td>{row.group}</td><td>{row.ticket}</td><td>{row.member}</td><td>{row.chequeNo || '—'}</td>
+    <td className="r">{row.chitValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{row.foremanCommission.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{row.discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{row.gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{row.prizeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{row.chequeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{row.foremanDividend.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td><td>{row.remarks}</td>
+  </tr>
+}
+
+function PrizeReportTotals({ rows }: { rows: PrizeReportRow[] }) {
+  const total = (key: keyof Pick<PrizeReportRow, 'chitValue' | 'foremanCommission' | 'discount' | 'gst' | 'prizeAmount' | 'chequeAmount' | 'foremanDividend'>) =>
+    rows.reduce((sum, row) => sum + row[key], 0)
+  return <tfoot><tr>
+    <td colSpan={6}>Total ({rows.length})</td>
+    <td className="r">{total('chitValue').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{total('foremanCommission').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{total('discount').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{total('gst').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{total('prizeAmount').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{total('chequeAmount').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{total('foremanDividend').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td><td />
+  </tr></tfoot>
 }
 
 function PayoutForm({ auction, onSaved }: { auction: any; onSaved: (payout: any) => void }) {

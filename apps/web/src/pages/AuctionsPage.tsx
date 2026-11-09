@@ -5,6 +5,7 @@ import { addMonths, auctionCalc, CHIT_RULES, currentMonth, formatDate, isMonthLa
 import { csvRupees, errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
 import { Badge, ConfirmModal, Empty, ExportButton, Loading, Money, PageHeader } from '../components/ui'
 import { ErrorMessage, Field, SelectField, SuccessMessage, TextArea } from '../components/DataControls'
+import AuctionEditModal from '../components/AuctionEditModal'
 
 export default function AuctionsPage() {
   const auth = useAuth()
@@ -12,6 +13,10 @@ export default function AuctionsPage() {
   const [groupFilter, setGroupFilter] = useState(params.get('group') || '')
   const [showForm, setShowForm] = useState(Boolean(params.get('group')))
   const [saved, setSaved] = useState('')
+  const [editingAuction, setEditingAuction] = useState<any>(null)
+  const [deletingAuction, setDeletingAuction] = useState<any>(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleteBusy, setDeleteBusy] = useState(false)
 
   const { data, error, loading, reload } = useAsync(async () => {
     const [groups, auctions, payouts, bids] = await Promise.all([
@@ -25,6 +30,21 @@ export default function AuctionsPage() {
 
   const rows = (data?.auctions ?? []).filter(a => !groupFilter || a.group_id === groupFilter)
   const payoutOf = (id: string) => data?.payouts.find(p => p.auction_id === id)
+  const deleteAuction = async () => {
+    if (!deletingAuction) return
+    setDeleteBusy(true)
+    setDeleteError('')
+    try {
+      must(await supabase.rpc('delete_auction', { p_auction_id: deletingAuction.id }))
+      setDeletingAuction(null)
+      setSaved('Auction deleted.')
+      await reload()
+    } catch (e) {
+      setDeleteError(errorText(e))
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
 
   return <>
     <PageHeader title="Auctions / Lifts" subtitle="Monthly auction, winner, bid/discount and dividend"
@@ -50,7 +70,7 @@ export default function AuctionsPage() {
     <Loading show={loading && !data} />
     {data && (rows.length ? <section className="card"><div className="table-wrap"><table>
       <thead><tr><th>Group</th><th>Month</th><th>Date</th><th>Winner</th><th>Bids</th><th className="r">Bid / discount</th><th className="r">Commission</th>
-        <th className="r">Dividend / member</th><th className="r">Prize amount</th><th>Payout</th></tr></thead>
+        <th className="r">Dividend / member</th><th className="r">Prize amount</th><th>Payout</th>{auth.isManager && <th>Actions</th>}</tr></thead>
       <tbody>{rows.map(a => {
         const payout = payoutOf(a.id)
         return <tr key={a.id}>
@@ -61,8 +81,21 @@ export default function AuctionsPage() {
           <td className="r"><Money value={a.dividend} /></td><td className="r">{a.prize_amount != null ? <Money value={a.prize_amount} /> : '—'}</td>
           <td>{!a.winner_membership ? '—' : payout ? <Badge status="PAID">Paid {rupees(payout.net_payout)}</Badge>
             : <Link className="btn small" to={`/payouts?auction=${a.id}`}>Record payout</Link>}</td>
+          {auth.isManager && <td className="bar">
+            <button className="small" onClick={() => setEditingAuction(a)}>Edit</button>
+            <button className="small danger" onClick={() => { setDeleteError(''); setDeletingAuction(a) }}>Delete</button>
+          </td>}
         </tr>
       })}</tbody></table></div></section> : <Empty>No auctions recorded yet.</Empty>)}
+    {editingAuction && data && <AuctionEditModal auction={editingAuction}
+      group={data.groups.find(g => g.id === editingAuction.group_id)}
+      onCancel={() => setEditingAuction(null)}
+      onSaved={async () => { setEditingAuction(null); setSaved('Auction updated.'); await reload() }} />}
+    {deletingAuction && <ConfirmModal title="Delete auction?"
+      message={`Delete ${deletingAuction.chit_groups?.series ?? 'this group'} ${monthName(deletingAuction.month_label)}? This removes the auction and its unpaid instalments. Auctions with any payout or payment history cannot be deleted.`}
+      confirmLabel="Delete auction" danger busy={deleteBusy} error={deleteError}
+      onCancel={() => { if (!deleteBusy) setDeletingAuction(null) }}
+      onConfirm={() => { void deleteAuction() }} />}
   </>
 }
 

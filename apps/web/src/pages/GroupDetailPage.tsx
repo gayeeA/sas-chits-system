@@ -6,6 +6,7 @@ import { errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
 import { Badge, ConfirmModal, ContactButtons, Empty, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
 import { ErrorMessage, Field, SelectField } from '../components/DataControls'
 import GroupForm from '../components/GroupForm'
+import AuctionEditModal from '../components/AuctionEditModal'
 
 export default function GroupDetailPage() {
   const { id = '' } = useParams()
@@ -18,6 +19,8 @@ export default function GroupDetailPage() {
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([])
   const [showReminders, setShowReminders] = useState(false)
   const [replacingTicket, setReplacingTicket] = useState<any>(null)
+  const [changingTicketNumber, setChangingTicketNumber] = useState<any>(null)
+  const [editingAuction, setEditingAuction] = useState<any>(null)
   const [confirmation, setConfirmation] = useState<{
     title: string; message: string; confirmLabel: string; action: () => Promise<boolean>
   } | null>(null)
@@ -103,6 +106,23 @@ export default function GroupDetailPage() {
         if (deleteError) return false
         setSelectedTicketIds([])
         setSelectedReminderIds(ids => ids.filter(id => !selectedTickets.some(ticket => ticket.membership_id === id)))
+        await reload()
+        return true
+      },
+    })
+  }
+  const deleteAuction = (auction: any) => {
+    setError('')
+    setConfirmation({
+      title: 'Delete auction?',
+      message: `Delete ${g.series} ${monthName(auction.month_label)}? This removes the auction and its unpaid instalments. Auctions with any payout or payment history cannot be deleted.`,
+      confirmLabel: 'Delete auction',
+      action: async () => {
+        const { error: deleteError } = await supabase.rpc('delete_auction', { p_auction_id: auction.id })
+        if (deleteError) {
+          setError(errorText(deleteError))
+          return false
+        }
         await reload()
         return true
       },
@@ -208,7 +228,8 @@ export default function GroupDetailPage() {
               <button className="small danger" onClick={() => removeTicket(t)}>Remove</button></>
             : <><button className="small" onClick={() => setTicketStatus(t, 'ACTIVE')}>Re-activate</button>
               <button className="small danger" onClick={() => removeTicket(t)}>Remove</button></>}
-            <button className="small" onClick={() => setReplacingTicket(t)}>Change member / ticket</button></td>}
+            <button className="small" onClick={() => setReplacingTicket(t)}>Change member / ticket</button>
+            <button className="small" onClick={() => setChangingTicketNumber(t)}>Change ticket number</button></td>}
         </tr>)}</tbody></table></div> : <Empty>No members in this group yet.</Empty>}
     </section>}
 
@@ -232,7 +253,7 @@ export default function GroupDetailPage() {
       <h3>Auction history</h3>
       {auctions.length ? <div className="table-wrap"><table>
         <thead><tr><th>Month</th><th>Date</th><th>Winner</th><th className="r">Bid / discount</th><th className="r">Commission</th>
-          <th className="r">Dividend / member</th><th className="r">Prize amount</th><th>Payout</th></tr></thead>
+          <th className="r">Dividend / member</th><th className="r">Prize amount</th><th>Payout</th>{auth.isManager && <th>Actions</th>}</tr></thead>
         <tbody>{auctions.map(a => {
           const payout = payouts.find(p => p.auction_id === a.id)
           return <tr key={a.id}>
@@ -242,6 +263,10 @@ export default function GroupDetailPage() {
             <td className="r"><Money value={a.dividend} /></td><td className="r">{a.prize_amount != null ? <Money value={a.prize_amount} /> : '—'}</td>
             <td>{!a.winner_membership ? '—' : payout ? <>{rupees(payout.net_payout)} on {formatDate(payout.payout_date)}</>
               : <Link to={`/payouts?auction=${a.id}`}>Record payout</Link>}</td>
+            {auth.isManager && <td className="bar">
+              <button className="small" onClick={() => setEditingAuction(a)}>Edit</button>
+              <button className="small danger" onClick={() => deleteAuction(a)}>Delete</button>
+            </td>}
           </tr>
         })}</tbody></table></div> : <Empty>No auctions yet.</Empty>}
     </section>}
@@ -257,6 +282,13 @@ export default function GroupDetailPage() {
       <ChangeTicket ticket={replacingTicket} taken={tickets.map(t => t.ticket_no)} ticketLimit={g.member_count ?? g.months}
         onSaved={async () => { setReplacingTicket(null); await reload() }} />
     </Modal>}
+    {changingTicketNumber && <Modal title={`Change ticket number · #${changingTicketNumber.ticket_no}`} onClose={() => setChangingTicketNumber(null)}>
+      <ChangeTicketNumber ticket={changingTicketNumber} taken={tickets.map(t => t.ticket_no)} ticketLimit={g.member_count ?? g.months}
+        onSaved={async () => { setChangingTicketNumber(null); await reload() }} />
+    </Modal>}
+    {editingAuction && <AuctionEditModal auction={editingAuction} group={g}
+      onCancel={() => setEditingAuction(null)}
+      onSaved={async () => { setEditingAuction(null); await reload() }} />}
     {confirmation && <ConfirmModal title={confirmation.title} message={confirmation.message}
       confirmLabel={confirmation.confirmLabel} danger busy={confirming} error={error}
       onCancel={() => { if (!confirming) setConfirmation(null) }}
@@ -326,6 +358,43 @@ function ChangeTicket({ ticket, taken, ticketLimit, onSaved }: {
         Number(form.ticketNo) > ticketLimit ||
         (Number(form.ticketNo) !== ticket.ticket_no && taken.includes(Number(form.ticketNo)))} onClick={() => { void save() }}>
         {busy ? 'Saving…' : 'Save ticket assignment'}
+      </button>
+      <ErrorMessage>{error}</ErrorMessage>
+    </div>
+  </div>
+}
+
+function ChangeTicketNumber({ ticket, taken, ticketLimit, onSaved }: {
+  ticket: any; taken: number[]; ticketLimit: number; onSaved: () => void
+}) {
+  const [ticketNo, setTicketNo] = useState(String(ticket.ticket_no))
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const number = Number(ticketNo)
+  const duplicate = number !== ticket.ticket_no && taken.includes(number)
+  const valid = number !== ticket.ticket_no && Number.isInteger(number) && number >= 1 && number <= ticketLimit && !duplicate
+
+  const save = async () => {
+    setBusy(true)
+    setError('')
+    const { error: updateError } = await supabase.rpc('change_membership_ticket_number', {
+      p_membership_id: ticket.membership_id,
+      p_ticket_no: number,
+    })
+    setBusy(false)
+    if (updateError) setError(errorText(updateError))
+    else onSaved()
+  }
+
+  return <div className="form">
+    <p className="muted small">This changes only the ticket number. The same member and all payment, auction, and follow-up history stay linked to this ticket. Historical screens will show the new number.</p>
+    <Field label="Ticket number" name="ticketNo" values={{ ticketNo }} setValues={values => setTicketNo(values.ticketNo)}
+      type="number" required min={1} max={ticketLimit} step="1" />
+    <p className="muted small">Ticket numbers must be between 1 and {ticketLimit}.</p>
+    {duplicate && <p className="warn-text">Ticket #{ticketNo} is already assigned in this group.</p>}
+    <div className="bar">
+      <button className="pri" disabled={busy || !valid} onClick={() => { void save() }}>
+        {busy ? 'Saving…' : 'Save ticket number'}
       </button>
       <ErrorMessage>{error}</ErrorMessage>
     </div>

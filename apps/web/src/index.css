@@ -166,7 +166,10 @@ tfoot td{font-weight:700;border-top:2px solid var(--navy);background:#fbfafd}
   body{background:#fff}main{margin:0;padding:0}.card{border:0;padding:0}
   body:has(.modal) main{display:none}.modal{position:static;background:none;padding:0;overflow:visible}.modal-box{max-width:none;padding:0}
   .print-only{display:block}th,td{padding:4px 6px;font-size:12px}
+  .prize-report{page:prizeReport}.prize-report .table-wrap{overflow:visible}
+  .prize-report .card{break-inside:avoid}.prize-report-table th,.prize-report-table td{padding:3px;font-size:8px}
 }
+@page prizeReport{size:A4 landscape;margin:8mm}
 
 /* Export & import */
 .export{display:inline-flex;gap:6px}

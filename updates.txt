@@ -1,0 +1,432 @@
+
+17 things to FIX on your vibecoded WEBSITE
+1. Remove horizontal scroll
+2. Add meta descriptions
+3. Add a favicone
+4. Fix page titles
+5. Compress images
+6. Clickable email
+7. Fix broken links
+8. Add mile menu
+9. Remove placeholder text
+10. Test on a mobile device
+11. Have an empty state page
+12. Optimize for mobile
+13. Fix mobile overflow
+14. Add error messages
+15. Add success messages
+16. Add 404 page
+17. Clickable phone number
+F R E E G U I D E
+
+The20
+Checks
+
+What makes a vibe coded site a real one
+
+W H A T ' S I N S I D E
+PART 1 People can find it
+PART 2 People trust it
+PART 3 It actually converts
+PART 4 Never do this again
+
+01 02 03 04
+
+05 06 07 08
+
+09 10 11 12
+
+13 14 15 16
+
+17 18 19 20
+
+Max Johnson
+Founder of @briix.ai
+@maxjohnscn
+
+Wantto work with me directly?
+Tell me what you are building and where you are stuck.
+Apply here →
+
+2026 · @maxjohnscn · Free Guide
+
+T H E 2 0 C H E C K S
+Whatmakesavibecodedsite
+arealone
+AI builders are honestly really good at making a site look finished. What they don't do is add the
+boring stuff nobody prompts for, and that's basically the stuff Google, your visitors and the law
+actually care about.
+So this is every one of the 20, with what it is, how to check your own site in about 10 seconds, and
+the exact prompt to fix it. You don't need to understand the code. Just run the check, and if it fails,
+paste the prompt into Claude Code, Cursor, Lovable or whatever you built it with.
+
+C O N T E N T S
+01 People can find it
+Meta title per page · Meta description per page · Open graph image · Robots.txt · Sitemap.xml · Alt text on
+every image · Analytics installed
+
+03
+
+02 People trustit
+Custom domain with SSL · Favicon set · Custom 404 page · Real contact address · Privacy policy page · Terms
+page · Cookie banner
+
+06
+
+03 It actually converts
+CTA above the fold · Mobile breakpoints · Sticky mobile CTA · Loading states · Form error states · Thank you
+page
+
+09
+
+04 Never do this again
+The block to paste into your CLAUDE.md file, your rules file or your project knowledge section.
+
+11
+
+Whatitis
+Every one of the 20, with what it
+is.
+
+01
+
+Check
+How to check your own site in
+about 10 seconds.
+
+02
+
+Prompt
+The exact prompt to fix it.
+03
+
+2026 · @maxjohnscn · Free Guide 02
+
+P A R T 1
+People can find it
+
+CHECKS 01 TO 07
+
+01 Meta title perpage
+WHAT IT IS The name of each page that shows in the browser tab and as the
+
+blue link on Google.
+
+CHECK Open three different pages and read the text on the browser tab. If
+they all say the same thing, or it says something like "Vite + React"
+or the name of your builder, it fails.
+
+P R O M P T Give every page on this site its own unique meta title, under 60 characters, that
+describes what that page is about and includes the business name at the end.
+
+02 Meta description perpage
+WHAT IT IS The two lines of grey text under your link on Google. It's what gets
+
+people to click.
+
+CHECK Paste your link into a free preview checker like metatags.io. If the
+
+description is blank or the same on every page, it fails.
+
+P R O M P T Write a unique meta description for every page, under 155 characters, that says
+
+what the visitor gets from that page in plain language.
+
+2026 · @maxjohnscn · Free Guide 03
+
+P A R T 1 · P E O P L E C A N F I N D I T CONTINUED
+
+03 Open graph image
+WHAT IT IS The preview picture that shows up when your link gets shared on
+
+WhatsApp, LinkedIn or iMessage.
+
+CHECK Send your own link to yourself on WhatsApp. If there's no image, or
+
+it's a random cropped one, it fails.
+
+P R O M P T Add open graph and Twitter card tags to every page, with a 1200 by 630 preview
+image, a title and a description. Create a simple branded default image if one
+doesn't exist.
+
+04 Robots.txt
+WHAT IT IS A tiny file that tells Google which parts of your site it's allowed to
+
+look at.
+
+CHECK Type yoursite.com/robots.txt into your browser. You should see a
+few lines of plain text. If you get an error page it fails. If you see
+"Disallow: /" on its own, that's worse, because it's telling Google to
+ignore your whole site.
+
+robots.txt
+
+P R O M P T Add a robots.txt file that allows search engines to crawl all public pages, blocks
+
+any admin or private routes, and links to the sitemap.
+
+2026 · @maxjohnscn · Free Guide 04
+
+P A R T 1 · P E O P L E C A N F I N D I T CONTINUED
+
+05 Sitemap.xml
+WHAT IT IS A list of every page on your site so Google can actually find them all.
+CHECK Type yoursite.com/sitemap.xml. You should see a list of your page
+
+links. An error page means it fails.
+P R O M P T Generate a sitemap.xml that includes every public page and updates automatically
+
+when I add new pages.
+
+TIP After that, add your site to Google Search Console (it's free) and submit the sitemap there.
+
+06 Alttext on every image
+WHAT IT IS A written description of each image. Screen readers read it out, and
+
+Google uses it to understand the picture.
+
+CHECK Ask your AI tool, "List every image on this site that has no alt text." If
+
+the list isn't empty, it fails.
+
+alt=
+
+P R O M P T Add clear, descriptive alt text to every image on the site. Describe what's
+actually in the image. Leave the alt empty for images that are purely decorative.
+
+07 Analytics installed
+WHAT IT IS The thing that tells you how many people visit, where they came
+
+from and what they clicked.
+
+CHECK Can you log into a dashboard right now and see today's visitors? If
+
+not, it fails.
+P R O M P T Install [Google Analytics 4 / PostHog / Plausible] on every page and tell me
+
+exactly what I need to sign up for and where to paste my ID.
+TIP Then open your site on your phone and check you show up in the live view.
+
+2026 · @maxjohnscn · Free Guide 05
+
+P A R T 2
+People trustit
+
+CHECKS 08 TO 14
+
+08 Custom domain withSSL
+WHAT IT IS Your own web address with the padlock next to it.
+CHECK Look at your address bar. If it ends in something like vercel.app or
+
+lovable.app, or the browser says "not secure", it fails.
+
+FIX Buy the domain (usually around £10 a year), then connect it in your
+hosting settings. Most hosts add the padlock for free automatically
+once the domain is connected.
+
+https: /yoursite
+
+P R O M P T Walk me through connecting my custom domain to this project step by step, and make
+
+sure every page redirects to the https version.
+
+09 Favicon set
+WHAT IT IS The little icon in the browser tab, and the icon people see if they
+
+save your site to their phone.
+
+CHECK Look at the tab. If it's a blank globe or your builder's logo, it fails.
+P R O M P T Create a full favicon set from my logo, including the browser tab icon, the Apple
+
+touch icon and the Android icons, and link them all properly.
+
+10 Custom 404 page
+WHAT IT IS What people see when they land on a link that doesn't exist.
+CHECK Type yoursite.com/asdfgh. If you get a plain white error screen, it
+
+fails.
+
+404
+
+P R O M P T Create a custom 404 page that matches the site design, says the page can't be
+found in a friendly way, and has a clear button back to the homepage.
+
+2026 · @maxjohnscn · Free Guide 06
+
+P A R T 2 · P E O P L E T R U S T I T CONTINUED
+
+11 Real contact address
+WHAT IT IS A real way to reach a real business. It's one of the first things people
+
+look for before they buy.
+
+CHECK Scroll to your footer. Is there an email on your own domain, and a
+business name and address? If it's just a form with nothing else, it
+fails.
+
+P R O M P T Add a footer to every page with the business name, contact email and business
+
+address, and a contact page with the same details.
+
+WORTH KNOWING If you're a UK limited company, you're legally required to show your registered company name,
+company number and registered office address on your site.
+
+12 Privacy policy page
+WHAT IT IS The page that tells people what data you collect and what you do
+with it. You need one the second you collect an email address.
+CHECK Is there a link in the footer, and does the page mention the things
+
+your site actually does (forms, analytics, payments)?
+
+P R O M P T Look at everything this site collects, including forms, analytics, cookies and
+payments, and draft a privacy policy that covers each one in plain English. Link
+it in the footer.
+
+NOTE Treat what it writes as a first draft. If you handle payments or anything sensitive, get it looked over
+properly.
+
+2026 · @maxjohnscn · Free Guide 07
+
+P A R T 2 · P E O P L E T R U S T I T CONTINUED
+
+13 Terms page
+WHAT IT IS The rules for using your site or buying from you, including things like
+
+refunds.
+
+CHECK Is there a link in the footer?
+
+P R O M P T Draft a terms page for this site covering what the service is, payments and
+refunds, acceptable use and liability, in plain English. Link it in the footer.
+
+NOTE Same as above, it's a first draft.
+
+14 Cookie banner
+WHAT IT IS The popup asking permission before you track someone.
+CHECK Open your site in a private or incognito window. If you're running
+analytics or ads and no banner appears, it fails. It also fails if there's
+an Accept button but no equally easy way to say no.
+P R O M P T Add a cookie consent banner with Accept and Reject buttons that are equally easy
+to click. Make sure analytics and tracking scripts only load after someone
+accepts.
+
+WORTH KNOWING In the UK and EU you generally need consent before tracking people, so this one isn't optional
+if you've done number 7.
+NOTE Since February 2026 the UK lets some purely statistical analytics run without consent, as long as you
+explain it and offer an easy opt out. Ads and other tracking still need consent, and so does the EU, so a banner
+is still the safe default.
+
+2026 · @maxjohnscn · Free Guide 08
+
+P A R T 3
+It actually converts
+
+CHECKS 15 TO 20
+
+15 CTA above the fold
+WHAT IT IS The main button telling people what to do, visible before they scroll.
+CHECK Open your homepage on your phone and don't touch it. If you can't
+
+see a button, it fails.
+P R O M P T Make sure the homepage has one clear call to action button visible without
+
+scrolling on both mobile and desktop.
+
+16 Mobile breakpoints
+WHAT IT IS How the layout rearranges itself for smaller screens. Most of your
+
+visitors are on a phone.
+
+CHECK Open every page on your phone. If you can scroll sideways, text
+
+overlaps, or buttons are too small to tap, it fails.
+P R O M P T Go through every page at phone, tablet and desktop widths. Fix anything that
+overflows, overlaps or is too small to tap, and make sure nothing scrolls
+sideways.
+
+17 Sticky mobile CTA
+WHAT IT IS A button that stays on screen while people scroll on their phone.
+CHECK Scroll halfway down your page on mobile. If the button has gone, it
+
+fails.
+P R O M P T Add a sticky call to action bar at the bottom of the screen on mobile only, using
+the same main button as the homepage. Make sure it doesn't cover any content or
+the cookie banner.
+
+2026 · @maxjohnscn · Free Guide 09
+
+P A R T 3 · I T A C T U A L L Y C O N V E R T S CONTINUED
+
+18 Loading states
+WHAT IT IS The spinner or "sending" message after someone clicks, so they
+
+know it's working.
+
+CHECK Click every button that submits or loads something. If nothing
+changes for a second or two, it fails. People will click again and you'll
+get duplicates.
+P R O M P T Add a loading state to every button and form that takes time to respond. Disable
+
+the button while it's loading so it can't be clicked twice.
+
+19 Form error states
+WHAT IT IS A message telling people what they got wrong.
+CHECK Submit your form empty, then again with "abc" as the email. If it just
+does nothing, or says "error" without saying where, it fails.
+
+abc
+
+P R O M P T Add validation to every form. Show a clear message next to the exact field that's
+wrong, explain how to fix it, and keep everything the person has already typed.
+
+20 Thankyou page
+WHAT IT IS The page people land on after they sign up or buy.
+CHECK Fill in your form properly. If you stay on the same page with a tiny
+
+message, it fails. It needs its own address, like yoursite.com/thank-
+you, because that's how your analytics counts a conversion.
+
+/thank-you
+
+P R O M P T Create a thank you page with its own URL that people are sent to after submitting
+
+a form. Confirm what happens next and when they'll hear from me.
+
+2026 · @maxjohnscn · Free Guide 10
+
+P A R T 4
+Neverdo this again
+
+Once your current site passes, you're gonna wanna make sure the next one ships like this from the
+start. Paste the block below into your CLAUDE.md file in Claude Code, your rules file in Cursor, or the
+project knowledge section in Lovable.
+
+P A S T E T H I S I N
+Every website in this project must ship with all of the following.
+Before telling me a site is finished, check each one and list
+anything that's missing.
+Findable:
+- Unique meta title and meta description on every page
+- Open graph image, title and description on every page
+- robots.txt and an auto updating sitemap.xml
+- Alt text on every meaningful image
+- Analytics installed and only firing after cookie consent
+Trust:
+- Full favicon set
+- Custom 404 page that matches the design
+- Footer with business name, contact email and address
+- Privacy policy and terms pages linked in the footer
+- Cookie banner with equal Accept and Reject options
+- All pages served over https
+Conversion:
+- One clear CTA visible without scrolling
+- Layout tested at phone, tablet and desktop widths
+- Sticky CTA on mobile
+- Loading states on every button and form
+- Clear error messages on every form field
+- Thank you page with its own URL after every form
+
+
+P R O M P T
+Audit this site against the checklist in my rules file. Give me a table of all 20 items
+showing pass or fail, then fix every fail one at a time and show me what you changed.
