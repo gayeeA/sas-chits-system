@@ -102,6 +102,7 @@ export default function CollectPage() {
           <div className="stat"><span className="stat-label">Previous due</span><b className="stat-value">{rupees(ticket.arrears)}</b></div>
           <div className="stat"><span className="stat-label">{monthName(ticket.current_month)} due</span><b className="stat-value">{rupees(ticket.current_balance)}</b>
             <span className="stat-hint">Instalment {rupees(ticket.due)} · paid {rupees(ticket.paid)}</span></div>
+          <div className="stat"><span className="stat-label">Advance credit</span><b className="stat-value">{rupees(Number(ticket.advance_credit) || 0)}</b></div>
           <div className={`stat ${ticket.total_outstanding ? 'bad' : 'good'}`}><span className="stat-label">Total outstanding</span><b className="stat-value">{rupees(ticket.total_outstanding)}</b>
             {ticket.overdue_months > 0 && <span className="stat-hint">{ticket.overdue_months} month(s) overdue</span>}</div>
         </div>
@@ -137,11 +138,11 @@ export default function CollectPage() {
 
         {quote && <div className="quote">
           <b>How this payment will be applied ({monthName(form.month)})</b>
-          <div>Old dues first: {rupees(quote.arrears_due)} → this month: {rupees(quote.current_due)} → future months: {rupees(quote.future_due)}
+          <div>Oldest due first: {rupees(quote.arrears_due)} → this month: {rupees(quote.current_due)} · upcoming instalments (not prepaid): {rupees(quote.future_due)}
             {quote.penalty_due > 0 && <> → penalty: {rupees(quote.penalty_due)}</>}</div>
           <div>Dividend for this month: {rupees(quote.dividend_allowed)}{quote.dividend_forfeited > 0 && <> · <span className="warn-text">forfeited (late): {rupees(quote.dividend_forfeited)}</span></>}</div>
           {amount > 0 && <div>After this payment, still pending: <b>{rupees(Math.max(dueNow - amount, 0))}</b>
-            {amount > dueNow + Number(quote.future_due) + Number(quote.penalty_due) && <span className="warn-text"> · {rupees(amount - dueNow - Number(quote.future_due) - Number(quote.penalty_due))} will be kept as advance/other credit</span>}</div>}
+            {amount > dueNow + Number(quote.penalty_due) && <span className="warn-text"> · {rupees(amount - dueNow - Number(quote.penalty_due))} beyond due instalments and charges will be kept as advance credit</span>}</div>}
         </div>}
 
         <div className="bar">

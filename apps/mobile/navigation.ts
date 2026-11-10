@@ -12,9 +12,13 @@ export type MemberDue = {
   current_month: string | null
   due: number
   paid: number
+  total_paid: number
   arrears: number
   current_balance: number
+  current_gross: number
+  current_dividend: number
   total_outstanding: number
+  advance_credit: number
   overdue: number
   overdue_months: number
   dividend: number

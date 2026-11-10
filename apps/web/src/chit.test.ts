@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addMonths, allocatePayment, amountInWords, auctionCalc, calculatePenalty, CHIT_RULES, dateInMonth, dividendPerMember,
+  addMonths, allocatePayment, amountInWords, auctionCalc, calculatePenalty, CHIT_RULES, dateInMonth,
   groupEndMonth, monthName, nextDateForDay, phoneDigits,
 } from './chit'
-
-describe('dividendPerMember', () => {
-  it('tests the legacy helper without asserting it matches the company agreement', () => {
-    const dividend = dividendPerMember(1000000, 5, 250000, 20)
-    expect(dividend).toBe(10000)
-  })
-})
 
 describe('amountInWords', () => {
   it('renders rupees and paise in English', () => {
@@ -18,23 +11,19 @@ describe('amountInWords', () => {
 })
 
 describe('allocatePayment', () => {
-  it('allocates oldest arrears first, then current, then future', () => {
+  it('allocates oldest arrears first, current dues next, then charges, and keeps excess as advance', () => {
     const allocation = allocatePayment({
       arrears: 1200,
       current: 1000,
-      future: 800,
       penalty: 300,
-      others: 200,
-      amount: 2500,
+      amount: 2800,
     })
 
     expect(allocation).toEqual({
       arrears: 1200,
       current: 1000,
-      future: 300,
-      penalty: 0,
-      others: 0,
-      remaining: 0,
+      penalty: 300,
+      advance: 300,
     })
   })
 })
@@ -58,6 +47,16 @@ describe('calculatePenalty', () => {
     ).toBe(500)
   })
 
+  it('honours the grace-period before charging a percentage penalty', () => {
+    expect(
+      calculatePenalty({
+        amount: 25000,
+        daysLate: 2,
+        config: { ...CHIT_RULES.defaultGroupConfig, grace_days: 3, penalty_mode: 'percent', penalty_value: 2 },
+      }),
+    ).toBe(0)
+  })
+
   it('returns zero when the group rule is disabled', () => {
     expect(
       calculatePenalty({
@@ -70,30 +69,38 @@ describe('calculatePenalty', () => {
 })
 
 describe('auctionCalc', () => {
+  it('matches the company calculation sheet for a 40-ticket group', () => {
+    const calc = auctionCalc({ chitValue: 100000000, discount: 35000000, commissionPct: 5, ticketCount: 40 })
+    expect(calc.commission).toBe(5000000)
+    expect(calc.dividendPool).toBe(30000000)
+    expect(calc.dividendPerTicket).toBe(750000)
+    expect(2500000 - calc.dividendPerTicket).toBe(1750000)
+  })
+
   it('takes commission from the discount by default', () => {
     // ₹5,00,000 chit, ₹1,00,000 discount, 5% commission, 20 members
-    const calc = auctionCalc({ chitValue: 50000000, discount: 10000000, commissionPct: 5, members: 20 })
+    const calc = auctionCalc({ chitValue: 50000000, discount: 10000000, commissionPct: 5, ticketCount: 20 })
     expect(calc).toEqual({
       commission: 2500000,
       commissionDeductedFromPayout: 0,
       dividendPool: 7500000,
-      dividendPerMember: 375000,
+      dividendPerTicket: 375000,
       dividendRemainder: 0,
       prizeAmount: 40000000,
     })
   })
 
   it('can deduct commission from the winner payout instead', () => {
-    const calc = auctionCalc({ chitValue: 50000000, discount: 10000000, commissionPct: 5, members: 20, commissionFrom: 'payout' })
+    const calc = auctionCalc({ chitValue: 50000000, discount: 10000000, commissionPct: 5, ticketCount: 20, commissionFrom: 'payout' })
     expect(calc.dividendPool).toBe(10000000)
-    expect(calc.dividendPerMember).toBe(500000)
+    expect(calc.dividendPerTicket).toBe(500000)
     expect(calc.prizeAmount).toBe(37500000)
     expect(calc.commissionDeductedFromPayout).toBe(2500000)
   })
 
   it('rounds the suggested dividend down to whole rupees and reports the remainder', () => {
-    const calc = auctionCalc({ chitValue: 10000000, discount: 1000000, commissionPct: 0, members: 3 })
-    expect(calc.dividendPerMember).toBe(333300)
+    const calc = auctionCalc({ chitValue: 10000000, discount: 1000000, commissionPct: 0, ticketCount: 3 })
+    expect(calc.dividendPerTicket).toBe(333300)
     expect(calc.dividendRemainder).toBe(100)
   })
 })

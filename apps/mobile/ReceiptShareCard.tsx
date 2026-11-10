@@ -38,7 +38,7 @@ const ReceiptShareCard = forwardRef<ViewShotRef, { receipt: any }>(function Rece
       <View style={{ borderWidth: 1, borderColor: '#222', marginTop: 6 }}>
         {row('Current', rupees(receipt.cur || 0))}
         {row('Arrears', rupees(receipt.arrears || 0))}
-        {row('Future', rupees(receipt.future || 0))}
+        {row('Future / advance credit', rupees(receipt.future || 0))}
         {row('Interest / Penalty', rupees(receipt.penalty || 0))}
         {row('Others', rupees(receipt.others || 0))}
         {row('TOTAL', rupees(receipt.total || 0), true)}

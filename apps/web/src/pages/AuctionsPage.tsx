@@ -53,7 +53,7 @@ export default function AuctionsPage() {
           { label: 'Group', value: a => a.chit_groups?.series }, { label: 'Month', value: a => a.month_label }, { label: 'Auction date', value: a => a.auction_date },
           { label: 'Winner', value: a => a.memberships ? `#${a.memberships.ticket_no} ${a.memberships.customers?.name}` : 'No winner' },
           { label: 'Bid/discount (₹)', value: a => csvRupees(a.discount_bid) }, { label: 'Commission (₹)', value: a => csvRupees(a.commission) },
-          { label: 'Dividend per member (₹)', value: a => csvRupees(a.dividend) }, { label: 'Prize amount (₹)', value: a => a.prize_amount == null ? '' : csvRupees(a.prize_amount) },
+          { label: 'Dividend per ticket (₹)', value: a => csvRupees(a.dividend) }, { label: 'Prize amount (₹)', value: a => a.prize_amount == null ? '' : csvRupees(a.prize_amount) },
           { label: 'Paid out (₹)', value: a => payoutOf(a.id) ? csvRupees(payoutOf(a.id)!.net_payout) : '' },
         ]} />
         {auth.isManager && !showForm && <button className="pri" onClick={() => setShowForm(true)}>+ Record auction</button>}
@@ -121,7 +121,7 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
   useEffect(() => {
     if (!g) return
     const month = g.current_month ? addMonths(g.current_month, 1) : (g.start_date?.slice(0, 7) || currentMonth())
-    setForm((f: any) => ({ ...f, month, commissionPct: g.commission_pct ?? 0, discount: '', dividend: '', commission: '', winner: '' }))
+    setForm((f: any) => ({ ...f, month, discount: '', winner: '' }))
     setBids({})
   }, [g?.id])
 
@@ -133,25 +133,24 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
   }, [top?.membership_id, top?.bid])
 
   const noWinner = form.type === 'none'
-  const members = g ? (g.member_count ?? g.months) : 0
+  const ticketCount = Number(g?.member_count) || 0
   const discount = noWinner ? 0 : toPaise(form.discount)
   const calc = useMemo(() => auctionCalc({
-    chitValue: g?.chit_value ?? 0, discount, commissionPct: Number(form.commissionPct) || 0, members, commissionFrom: rules.commission_from,
-  }), [g?.chit_value, discount, form.commissionPct, members, rules.commission_from])
-  const commission = form.commission === '' || form.commission == null ? calc.commission : toPaise(form.commission)
-  const pool = Math.max(0, discount - (rules.commission_from === 'payout' ? 0 : commission))
-  const suggestedDividend = members > 0 ? Math.floor(pool / members / 100) * 100 : 0
-  const dividend = form.dividend === '' || form.dividend == null ? suggestedDividend : toPaise(form.dividend)
-  const prize = noWinner ? null : Math.max(0, (g?.chit_value ?? 0) - discount - (rules.commission_from === 'payout' ? commission : 0))
+    chitValue: g?.chit_value ?? 0, discount, commissionPct: Number(g?.commission_pct) || 0, ticketCount, commissionFrom: rules.commission_from,
+  }), [g?.chit_value, g?.commission_pct, discount, ticketCount, rules.commission_from])
+  const commission = noWinner ? 0 : calc.commission
+  const dividend = noWinner ? 0 : calc.dividendPerTicket
+  const prize = noWinner ? null : calc.prizeAmount
   const duplicateMonth = groupAuctions.some(a => a.month_label === form.month)
   const winnerName = eligible.find(t => t.id === form.winner)
   const valid = g && isMonthLabel(form.month) && !duplicateMonth && (noWinner || (form.winner && discount >= 0)) &&
-    discount <= (g?.chit_value ?? 0) && rules.prized_member_instalment !== 'unset' && dividend >= 0
+    discount <= (g?.chit_value ?? 0) && ticketCount > 0 && g.commission_pct != null &&
+    rules.prized_member_instalment !== 'unset' && dividend >= 0
 
   const save = async () => {
     const summary = noWinner
-      ? `${g.series} · ${monthName(form.month)}\nNo winner (company chit). Dividend per member: ${rupees(dividend)}.`
-      : `${g.series} · ${monthName(form.month)}\nWinner: #${winnerName?.ticket_no} ${(winnerName?.customers as any)?.name}\nBid/discount: ${rupees(discount)}\nDividend per member: ${rupees(dividend)}\nPrize amount: ${rupees(prize!)}`
+      ? `${g.series} · ${monthName(form.month)}\nNo winner (company chit). Dividend per ticket: ${rupees(dividend)}.`
+      : `${g.series} · ${monthName(form.month)}\nWinner: #${winnerName?.ticket_no} ${(winnerName?.customers as any)?.name}\nBid/discount: ${rupees(discount)}\nDividend per ticket: ${rupees(dividend)}\nPrize amount: ${rupees(prize!)}`
     setError('')
     setConfirmSummary(summary)
   }
@@ -164,7 +163,7 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
         p_auction_date: form.auctionDate || null, p_commission: noWinner ? 0 : commission, p_prize: prize,
         p_bids: noWinner ? [] : bidList, p_notes: form.notes || null,
       }))
-      onSaved(`Auction saved for ${g.series} ${monthName(form.month)}. Instalments for all members are now created.`)
+      onSaved(`Auction saved for ${g.series} ${monthName(form.month)}. Instalments for all active tickets are now created.`)
     } catch (e) {
       setError(errorText(e))
     } finally {
@@ -184,38 +183,36 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
         options={[['auction', 'Auction with a winner'], ['none', 'No auction (first month / company chit)']]} />
     </div>
     {g && rules.prized_member_instalment === 'unset' && <p className="er">Set the “Prized member pays” rule on this group before recording an auction. <Link to={`/groups/${g.id}`}>Open group</Link></p>}
-    {g && <p className="muted small">{rupees(g.chit_value)} chit · {members} members · {rupees(g.gross_installment)} monthly · month {groupAuctions.length + 1} of {g.months}</p>}
+    {g && g.commission_pct == null && <p className="er">Set the foreman commission from the registered agreement on this group before recording an auction. <Link to={`/groups/${g.id}`}>Open group</Link></p>}
+    {g && ticketCount <= 0 && <p className="er">Set the registered total ticket count on this group before recording an auction. <Link to={`/groups/${g.id}`}>Open group</Link></p>}
+    {g && <p className="muted small">{rupees(g.chit_value)} chit · {ticketCount || 'Ticket count not set'} tickets · {rupees(g.gross_installment)} monthly · month {groupAuctions.length + 1} of {g.months}</p>}
+    {g && ticketCount > 0 && <p className="muted small">Dividend is calculated per ticket using this configured count. Verify the count against the registered agreement.</p>}
 
     {g && !noWinner && <>
-      <h3>Bids from participating members</h3>
+      <h3>Bids from participating tickets</h3>
       <p className="muted small">Enter the discount each member offered (leave blank if they did not bid). The highest bid is chosen as winner; you can change it below.</p>
       {eligible.length ? <div className="bid-grid">{eligible.map(t => <label key={t.id} className={form.winner === t.id ? 'winner' : ''}>
         #{t.ticket_no} {(t.customers as any)?.name}
         <input type="number" inputMode="decimal" min={0} placeholder="Bid ₹" value={bids[t.id] ?? ''} onChange={e => setBids({ ...bids, [t.id]: e.target.value })} />
-      </label>)}</div> : <Empty>{tickets.loading ? 'Loading tickets…' : 'No eligible members (everyone has lifted already, or no tickets).'}</Empty>}
+      </label>)}</div> : <Empty>{tickets.loading ? 'Loading tickets…' : 'No eligible tickets (everyone has lifted already, or no tickets).'}</Empty>}
       <div className="grid">
         <SelectField label="Winner" name="winner" values={form} setValues={setForm} required
           options={eligible.map(t => [t.id, `#${t.ticket_no} ${(t.customers as any)?.name}`])} />
         <Field label="Winning bid / discount (₹)" name="discount" values={form} setValues={setForm} type="number" required />
-        <Field label="Commission %" name="commissionPct" values={form} setValues={setForm} type="number" />
-        <Field label="Commission amount (₹)" name="commission" values={form} setValues={setForm} type="number" placeholder={String(toRupees(calc.commission))} hint="Leave blank to use the % above" />
+        <label><span>Foreman commission</span><input value={`${g.commission_pct}% · ${rupees(commission)}`} readOnly /></label>
       </div>
     </>}
-    {g && <div className="grid">
-      <Field label="Dividend per member (₹)" name="dividend" values={form} setValues={setForm} type="number" placeholder={String(toRupees(suggestedDividend))}
-        hint="Suggested value shown; enter the figure as per your agreement" />
-    </div>}
 
     {g && <div className="calc">
       <h3>Calculation</h3>
       <table><tbody>
         <tr><td>Chit amount</td><td className="r">{rupees(g.chit_value)}</td></tr>
         {!noWinner && <tr><td>− Winning bid / discount</td><td className="r">{rupees(discount)}</td></tr>}
-        {!noWinner && rules.commission_from === 'payout' && <tr><td>− Commission ({form.commissionPct || 0}%)</td><td className="r">{rupees(commission)}</td></tr>}
+        {!noWinner && rules.commission_from === 'payout' && <tr><td>− Commission ({g.commission_pct}%)</td><td className="r">{rupees(commission)}</td></tr>}
         {!noWinner && <tr className="total"><td>Prize amount for winner (before other deductions)</td><td className="r">{rupees(prize ?? 0)}</td></tr>}
-        {!noWinner && <tr><td colSpan={2} className="muted small">Dividend pool: discount {rupees(discount)}{rules.commission_from !== 'payout' ? ` − commission ${rupees(commission)}` : ''} = {rupees(pool)} ÷ {members} members = {rupees(members ? Math.floor(pool / members) : 0)} (suggested {rupees(suggestedDividend)}, rounded down to rupee)</td></tr>}
-        <tr><td>Dividend per member (used)</td><td className="r">{rupees(dividend)}</td></tr>
-        <tr className="total"><td>Each member pays for {monthName(form.month)}</td><td className="r">{rupees(Math.max(0, g.gross_installment - dividend))}</td></tr>
+        {!noWinner && <tr><td colSpan={2} className="muted small">Dividend pool: discount {rupees(discount)}{rules.commission_from !== 'payout' ? ` − commission ${rupees(commission)}` : ''} = {rupees(calc.dividendPool)} ÷ {ticketCount} tickets. Dividend is rounded down to whole rupees.</td></tr>}
+        <tr><td>Dividend per ticket</td><td className="r">{rupees(dividend)}</td></tr>
+        <tr className="total"><td>Each ticket pays for {monthName(form.month)}</td><td className="r">{rupees(Math.max(0, g.gross_installment - dividend))}</td></tr>
         {!noWinner && rules.prized_member_instalment === 'full_gross' && <tr><td colSpan={2} className="muted small">Winner pays the full {rupees(g.gross_installment)} this month (group rule).</td></tr>}
       </tbody></table>
     </div>}

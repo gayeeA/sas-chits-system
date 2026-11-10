@@ -1,33 +1,74 @@
-# Client confirmations / క్లయింట్ నిర్ధారణలు
+## Dues display — confirmed / బకాయిల ప్రదర్శన — నిర్ధారించబడింది
 
-## Prize money report — confirmed
-
-- Include **both paid and unpaid prizes** in the report.
-- If a payout is cancelled, list that prize as unpaid again.
-- GST is separate from dividend. Use **0.9% of chit value** (₹900 for ₹1 lakh; ₹4,500 for ₹5 lakh).
-- Calculate **Cheque Amount = Prize Amount − GST**.
-- Use the columns from the Excel template.
-- Provide both **Excel download** and **print / PDF**.
-
-## ప్రైజ్ మనీ రిపోర్ట్ — నిర్ధారించినవి
-
-- చెల్లించిన మరియు ఇంకా చెల్లించని రెండు రకాల ప్రైజ్‌లను రిపోర్టులో చూపించాలి.
-- పేమెంట్ రద్దు చేస్తే, ఆ ప్రైజ్‌ను మళ్లీ బకాయి జాబితాలో చూపించాలి.
-- GST డివిడెండ్‌కు వేరుగా ఉంటుంది. చిట్ విలువపై **0.9%** లెక్కించాలి (₹1 లక్షకు ₹900; ₹5 లక్షలకు ₹4,500).
-- **చెక్ మొత్తం = ప్రైజ్ మొత్తం − GST**.
-- ఎక్సెల్ నమూనాలోని కాలమ్స్ ఉపయోగించాలి.
-- రిపోర్ట్‌ను ఎక్సెల్‌గా డౌన్‌లోడ్ చేయడానికి, ప్రింట్ / PDF చేయడానికి వీలు ఉండాలి.
+- Show the member's **all-time total paid** alongside their arrears.
+- బకాయిల పక్కన సభ్యుడు ఇప్పటివరకు చెల్లించిన **మొత్తం మొత్తాన్ని** చూపించాలి.
+- Show the **gross instalment amount, dividend, and final amount due separately**; do not show only a dividend-reduced due.
+- **స్థూల వాయిదా మొత్తం, డివిడెండ్, చివరగా చెల్లించాల్సిన మొత్తాన్ని విడివిడిగా** చూపించాలి; డివిడెండ్ తగ్గించిన బకాయిని మాత్రమే చూపించకూడదు.
 
 ## Still to confirm / ఇంకా నిర్ధారించాల్సింది
 
-- Dues: show how much the member has paid next to their arrears. Confirm whether this should be the amount paid toward previous months only, or all-time total paid.
-- బకాయిల పక్కన సభ్యుడు కట్టిన మొత్తాన్ని కూడా చూపించాలి. ఇది గత నెలల బకాయిలకు కట్టిన మొత్తం మాత్రమేనా, లేక ఇప్పటివరకు కట్టిన మొత్తం అంతా చూపించాలా?
-- The website already subtracts dividend from monthly dues. Confirm whether to keep this, or show gross amount, dividend, and final due separately.
-- వెబ్‌సైట్‌లో నెలవారీ బకాయి నుంచి డివిడెండ్ ఇప్పటికే తగ్గుతోంది. ఇదే విధంగా ఉంచాలా, లేక అసలు మొత్తం, డివిడెండ్, చివరగా చెల్లించాల్సిన మొత్తాన్ని విడిగా చూపించాలా?
+# Agreement and financial rules — evidence reviewed, group-specific verification pending / ఒప్పందం మరియు ఆర్థిక నియమాలు — పత్రాలు పరిశీలించబడ్డాయి, గ్రూపువారీ ధృవీకరణ పెండింగ్
 
-## Already requested / ఇప్పటికే కోరినవి
+### Confirmed business rules / నిర్ధారించిన వ్యాపార నియమాలు
 
-- Add edit and delete options to auction/lift records.
-- Allow changing a ticket number while keeping its member and history.
-- వేలం / లిఫ్ట్ వివరాలను ఎడిట్ చేయడానికి, డిలీట్ చేయడానికి ఆప్షన్లు.
-- సభ్యుడిని మరియు అతని పాత రికార్డులను అలాగే ఉంచి టికెట్ నంబర్ మార్చే ఆప్షన్.
+- The company is a registered chit fund company operating in Andhra Pradesh. The user confirmed that the supplied current registered agreement governs the target group(s) and that winner selection for those groups is by auction. This supersedes the earlier lucky-draw assumption; do not implement a draw workflow for these groups.
+- కంపెనీ ఆంధ్రప్రదేశ్‌లో పనిచేస్తున్న రిజిస్టర్డ్ చిట్ ఫండ్ కంపెనీ. అందించిన ప్రస్తుత రిజిస్టర్డ్ ఒప్పందం లక్ష్య గ్రూపులకు వర్తిస్తుందని, ఆ గ్రూపుల్లో విజేత ఎంపిక వేలం ద్వారా జరుగుతుందని వినియోగదారు నిర్ధారించారు. ఇది ముందటి లక్కీ-డ్రా అంచనాను సవరిస్తుంది; ఈ గ్రూపులకు డ్రా విధానాన్ని అమలు చేయకూడదు.
+- Allocate subscription payments FIFO: apply each payment to the oldest unpaid instalment first, record each instalment allocation separately, and retain excess as an advance credit. Keep penalties, interest, and other charges separate.
+- చందా చెల్లింపులను FIFO పద్ధతిలో కేటాయించాలి: ప్రతి చెల్లింపును ముందుగా అత్యంత పాత చెల్లించని వాయిదాకు కేటాయించాలి; ప్రతి వాయిదా కేటాయింపును విడిగా నమోదు చేయాలి; మిగిలిన మొత్తాన్ని అడ్వాన్స్ క్రెడిట్‌గా ఉంచాలి. జరిమానాలు, వడ్డీ, ఇతర ఛార్జీలను విడిగా నమోదు చేయాలి.
+- Do not assume a universal dividend or prize formula. Eligibility and calculations must follow the applicable registered agreement and verified requirements.
+- అందరికీ వర్తించే డివిడెండ్ లేదా బహుమతి మొత్తపు సూత్రాన్ని ఊహించకూడదు. అర్హత మరియు లెక్కలు వర్తించే రిజిస్టర్డ్ ఒప్పందం, ధృవీకరించిన అవసరాల ప్రకారమే ఉండాలి.
+- The user clarified that “360 days” is the day-count basis for prorating annual interest, not a 360-day grace period. Confirm each agreement's applicable interest rate, start date, and conditions before implementing interest.
+- “360 రోజులు” అనేది వార్షిక వడ్డీని రోజువారీగా లెక్కించడానికి ఉపయోగించే day-count basis అని, 360 రోజుల గ్రేస్ కాలం కాదని వినియోగదారు స్పష్టం చేశారు. వడ్డీని అమలు చేయడానికి ముందు ప్రతి ఒప్పందంలో వర్తించే వడ్డీ రేటు, ప్రారంభ తేదీ, షరతులను నిర్ధారించాలి.
+
+### Documents received and initial review / అందిన పత్రాలు మరియు ప్రాథమిక పరిశీలన
+
+- `Required_docs/ACE Scanner_20261026(3).pdf` is the company's actual, current, two-page registered subscriber agreement for the target group(s), not a template. It is headed as Form VIII and refers to AP Chit Funds Rules, 2008. The scan is difficult to read, so request a clearer scan only to verify exact clauses. It appears to specify auctions, a 5% foreman's commission, distribution of the discount as dividend, instalments reduced by dividend, and different late-interest treatment for non-prized and prized subscribers.
+- `Required_docs/ACE Scanner_20261026(3).pdf` లక్ష్య గ్రూపు(ల)కు సంబంధించిన కంపెనీ యొక్క వాస్తవ, ప్రస్తుత, రెండు పేజీల రిజిస్టర్డ్ చందాదారు ఒప్పందం; ఇది నమూనా పత్రం కాదు. దీనిపై Form VIII శీర్షిక ఉంది; AP Chit Funds Rules, 2008 ప్రస్తావించబడ్డాయి. స్కాన్ చదవడానికి కష్టంగా ఉంది కాబట్టి ఖచ్చితమైన క్లాజులను ధృవీకరించడానికి మాత్రమే స్పష్టమైన స్కాన్ అవసరం. ఇందులో వేలాలు, 5% ఫోర్‌మన్ కమిషన్, డిస్కౌంట్‌ను డివిడెండ్‌గా పంపిణీ చేయడం, డివిడెండ్ మేర వాయిదా తగ్గించడం, బహుమతి పొందని మరియు పొందిన చందాదారులకు వేర్వేరు ఆలస్య వడ్డీ విధానం ఉన్నట్లు కనిపిస్తోంది.
+- `Required_docs/chit_dividend_list_calculation.pdf` is the company's actual 40-instalment calculation list for a ₹10 lakh chit with a ₹25,000 gross monthly instalment, not a template or a universal schedule for every group. Its figures are consistent with: (winning bid/discount − 5% of chit value foreman's commission) ÷ 40 tickets = dividend per ticket; payable instalment = ₹25,000 − dividend. For example, month 2: (₹3,50,000 − ₹50,000) ÷ 40 = ₹7,500 dividend; ₹25,000 − ₹7,500 = ₹17,500 payable. Migration 015 implements this formula using each group's configured commission treatment and ticket count, then stores the per-ticket dividend on generated instalments. Apply the migration and verify each target group's ticket count and commission settings against its agreement before use.
+- `Required_docs/chit_dividend_list_calculation.pdf` ₹10 లక్షల చిట్‌కు, నెలకు ₹25,000 స్థూల వాయిదాతో కంపెనీ ఉపయోగించే వాస్తవ 40 వాయిదాల లెక్కల పట్టిక; ఇది నమూనా పత్రం కాదు, ప్రతి గ్రూపుకు వర్తించే సాధారణ షెడ్యూల్ కూడా కాదు. దీని లెక్కలు ఈ విధానానికి సరిపోతున్నాయి: (విజేత బిడ్/డిస్కౌంట్ − చిట్ విలువలో 5% ఫోర్‌మన్ కమిషన్) ÷ 40 టికెట్లు = ఒక్కో టికెట్ డివిడెండ్; చెల్లించవలసిన వాయిదా = ₹25,000 − డివిడెండ్. ఉదాహరణకు, 2వ నెల: (₹3,50,000 − ₹50,000) ÷ 40 = ₹7,500 డివిడెండ్; ₹25,000 − ₹7,500 = ₹17,500 చెల్లించాలి. Migration 015లో ప్రతి గ్రూపు commission treatment మరియు ticket count ఆధారంగా ఈ సూత్రం అమలవుతుంది; రూపొందే వాయిదాలో ఒక్కో టికెట్ డివిడెండ్ నిల్వ అవుతుంది. వాడే ముందు migration అమలు చేసి, ప్రతి లక్ష్య గ్రూపు ticket count మరియు commission సెట్టింగులను దాని ఒప్పందంతో ధృవీకరించండి.
+
+- `Required_docs/WhatsApp Image 2026-11-10 at 16.24.18.jpeg` is an actual Form VII member ledger, reviewed without repeating the subscriber's personal details. It records a ₹5 lakh chit, 40 instalments, and two tickets taken. A visible early instalment records ₹12,500 gross subscription, ₹3,750 dividend, and ₹8,750 payable: ₹12,500 − ₹3,750 = ₹8,750. This confirms that the ledger applies dividend against gross instalment to get the payable amount and is consistent with the company's dividend examples. The ledger does not include that month's auction bid/discount or commission, so the origin of the ₹3,750 cannot yet be independently reconciled. Confirm whether ₹12,500 is per ticket or the total for both tickets before mapping the ledger to app ticket rows.
+- `Required_docs/WhatsApp Image 2026-11-10 at 16.24.18.jpeg` వాస్తవ Form VII సభ్యుల లెడ్జర్; సభ్యుని వ్యక్తిగత వివరాలను మళ్లీ ప్రస్తావించకుండా పరిశీలించబడింది. ఇందులో ₹5 లక్షల చిట్, 40 వాయిదాలు, తీసుకున్న రెండు టికెట్లు ఉన్నాయి. కనిపిస్తున్న ప్రారంభ వాయిదాలో ₹12,500 స్థూల చందా, ₹3,750 డివిడెండ్, ₹8,750 చెల్లించవలసిన మొత్తం నమోదు అయ్యాయి: ₹12,500 − ₹3,750 = ₹8,750. స్థూల వాయిదా నుంచి డివిడెండ్ తగ్గించి చెల్లించవలసిన మొత్తాన్ని లెక్కించే విధానాన్ని ఇది నిర్ధారిస్తూ, కంపెనీ డివిడెండ్ ఉదాహరణలతో సరిపోతుంది. అయితే ఆ నెల వేలం బిడ్/డిస్కౌంట్ లేదా కమిషన్ ఇందులో లేవు; అందువల్ల ₹3,750 ఎలా వచ్చిందో ఇంకా స్వతంత్రంగా సరిపోల్చలేము. యాప్ టికెట్ రికార్డులతో సరిపోల్చే ముందు ₹12,500 ఒక్కో టికెట్‌కా లేక రెండు టికెట్ల మొత్తమా నిర్ధారించాలి.
+
+### Implementation status / అమలు స్థితి
+
+- Migration 015 changes only future auction/payment processing. Existing financial history is not recalculated. New receipts allocate overdue and selected-month instalments by due date, then configured penalties; any remainder is recorded as `ADVANCE`, reversed if its receipt is cancelled, and displayed separately from outstanding dues.
+- The displayed all-time paid figure now comes from active receipt totals, so it includes advances and separately recorded charges; advance credit is also shown as its own balance. Historical receipt `future` amounts may represent earlier future-instalment allocations, so receipts label that column “Future / advance credit”; detailed allocations preserve the exact type.
+- The agreement scan is not clear enough to verify all eligibility, prized-subscriber, and interest clauses. The app's existing active-ticket/one-win eligibility remains in place but is not confirmed as the agreement's complete eligibility rule. The ledger's two-ticket amount basis and the matching month's auction record are also still needed for a complete reconciliation of that example.
+- Older group records may have had a missing `member_count` populated from `months` by migration 002. Verify every group's displayed registered ticket count against its agreement before recording an auction; the app no longer falls back to duration when the count is missing.
+- Apply migration 015 in Supabase before expecting the server-side dividend checks, FIFO/advance handling, or `advance_credit` view column to work. Do not claim legal compliance; prescribed statutory formats and deadlines remain unverified.
+
+### అమలు స్థితి
+
+- Migration 015 భవిష్యత్తు వేలం/చెల్లింపులకే వర్తిస్తుంది; పాత ఆర్థిక చరిత్రను మళ్లీ లెక్కించదు. కొత్త రసీదులో ముందుగా గడువు దాటిన మరియు ఎంపిక చేసిన నెల వాయిదాలు due-date క్రమంలో కేటాయించబడతాయి; తరువాత configured penalties; మిగిలిన మొత్తం `ADVANCE`గా నమోదు అవుతుంది. రసీదు రద్దయితే ఆ క్రెడిట్ రివర్స్ అవుతుంది; బాకీకి వేరుగా చూపబడుతుంది.
+- “ఇప్పటివరకు చెల్లించిన మొత్తం” ఇప్పుడు active receipt totals నుంచి వస్తుంది; అందులో advance మరియు వేరుగా నమోదైన ఛార్జీలు కూడా ఉంటాయి. Advance credit ప్రత్యేకంగా చూపబడుతుంది. పాత రసీదుల `future` మొత్తం అప్పటి future-instalment కేటాయింపులు కావచ్చు; అందుకే రసీదులో “Future / advance credit” అని చూపిస్తూ, వివరాల జాబితాలో ఖచ్చితమైన allocation type నిలుపుతాం.
+- స్కాన్ స్పష్టంగా లేకపోవడంతో అర్హత, prized subscriber, వడ్డీ క్లాజులన్నీ ధృవీకరించలేము. అందువల్ల ఒప్పందం నుంచి ఊహించి విజేత అర్హతను మార్చడం లేదు. రెండు టికెట్ల లెడ్జర్ మొత్తం ఒక్కో టికెట్‌కా లేక రెండింటికా, అలాగే అదే నెల వేలం రికార్డు ఇంకా అవసరం.
+- సర్వర్‌లో dividend validation, FIFO/advance handling మరియు `advance_credit` view column పనిచేయాలంటే ముందుగా Supabaseలో migration 015 అమలు చేయాలి. చట్టపరమైన అనుసరణను ప్రకటించవద్దు; prescribed formats/deadlines ఇంకా ధృవీకరించబడలేదు.
+
+### Checklist for father — documents and answers requested / నాన్నగారికి చెక్‌లిస్ట్ — కావలసిన పత్రాలు మరియు సమాధానాలు
+
+Please send copies or answers for the **same chit group covered by the agreement**. Scans/photos should be clear and include all relevant pages. Redact subscriber names, phone numbers, addresses, Aadhaar/PAN, bank-account details, signatures, and other personal information. Replace them with labels such as Member A and Ticket 1. Do not send passwords, OTPs, or unredacted identity documents.
+
+దయచేసి **ఒప్పందం వర్తించే అదే చిట్ గ్రూపుకు** సంబంధించిన పత్రాల ప్రతులు లేదా సమాధానాలు పంపండి. స్కాన్‌లు/ఫోటోలు స్పష్టంగా ఉండాలి; సంబంధిత పేజీలన్నీ ఉండాలి. చందాదారుల పేర్లు, ఫోన్ నంబర్లు, చిరునామాలు, ఆధార్/PAN, బ్యాంక్ ఖాతా వివరాలు, సంతకాలు మరియు ఇతర వ్యక్తిగత వివరాలను తొలగించండి. వాటి బదులు Member A, Ticket 1 వంటి పేర్లు వాడండి. పాస్‌వర్డ్‌లు, OTPలు లేదా వ్యక్తిగత గుర్తింపు పత్రాల పూర్తి కాపీలు పంపవద్దు.
+
+#### Needed before validating the financial calculations / ఆర్థిక లెక్కలను ధృవీకరించడానికి అవసరమైనవి
+
+- [ ] **Clearer scan of the actual registered chit agreement** for this group, including every page, annexure/schedule, and readable clauses about auction conduct, bidder/winner eligibility, foreman's commission, prize amount/payment, dividend distribution and instalment amounts after dividend. Confirm the group/series and that this agreement governs it. The supplied real agreement scan is difficult to read.
+- [ ] **ఈ గ్రూపుకు సంబంధించిన స్పష్టమైన రిజిస్టర్డ్ చిట్ ఒప్పందం** — వేలం నిర్వహణ, బిడ్డర్/విజేత అర్హత, ఫోర్‌మన్ కమిషన్, బహుమతి మొత్తం/చెల్లింపు, డివిడెండ్ పంపిణీ, డివిడెండ్ తర్వాత వాయిదా మొత్తాలపై క్లాజులతో సహా అన్ని పేజీలు, అనుబంధాలు/షెడ్యూల్‌లు పంపండి. గ్రూప్/సిరీస్‌ను, ఈ ఒప్పందమే దానికి వర్తిస్తుందని నిర్ధారించండి. ప్రస్తుతం ఉన్న స్కాన్ స్పష్టంగా చదవడానికి కష్టంగా ఉంది.
+- [ ] **Interest/default rule**, preferably the exact agreement clause: annual rate for non-prized and prized subscribers; whether rates differ; date interest starts; whether any grace period applies; how partial payments affect the interest-bearing balance; and confirmation that annual interest is prorated on a 360-day basis. Please clarify whether the quoted rate is simple or compound interest.
+- [ ] **వడ్డీ/డిఫాల్ట్ నియమం**, సాధ్యమైతే ఒప్పందంలోని ఖచ్చితమైన క్లాజు: బహుమతి పొందని మరియు పొందిన చందాదారులకు వార్షిక వడ్డీ రేట్లు; రేట్లు వేరుగా ఉంటాయా; వడ్డీ ప్రారంభ తేదీ; ఏదైనా గ్రేస్ కాలం ఉందా; పాక్షిక చెల్లింపుల వల్ల వడ్డీ లెక్కించే బాకీ ఎలా మారుతుంది; వార్షిక వడ్డీని 360 రోజుల ఆధారంగా రోజువారీగా లెక్కిస్తారని నిర్ధారణ. వడ్డీ సాధారణ వడ్డీనా లేదా చక్రవడ్డీనా కూడా తెలియజేయండి.
+- [x] **One actual member ledger received:** `Required_docs/WhatsApp Image 2026-11-10 at 16.24.18.jpeg`. It confirms gross instalment minus dividend equals the payable amount. The recorded ₹12,500 instalment is ambiguous because the ledger notes two tickets; confirm whether it is per ticket or combined.
+- [x] **ఒక వాస్తవ సభ్యుల లెడ్జర్ అందింది:** `Required_docs/WhatsApp Image 2026-11-10 at 16.24.18.jpeg`. స్థూల వాయిదా నుంచి డివిడెండ్ తగ్గిస్తే చెల్లించవలసిన మొత్తం వస్తుందని ఇది నిర్ధారిస్తుంది. లెడ్జర్‌లో రెండు టికెట్లు ఉన్నందున ₹12,500 ఒక్కో టికెట్‌కా లేక కలిపిన మొత్తమా నిర్ధారించాలి.
+- [ ] Provide the matching month's auction record showing winning bid/discount and foreman's commission for the ₹3,750 dividend, and confirm the group's total ticket count. This will verify the dividend calculation against the member ledger.
+- [ ] ₹3,750 డివిడెండ్‌కు సంబంధించిన అదే నెల వేలం రికార్డులో విజేత బిడ్/డిస్కౌంట్ మరియు ఫోర్‌మన్ కమిషన్ చూపించి, గ్రూపులోని మొత్తం టికెట్ల సంఖ్యను నిర్ధారించండి. దీనితో సభ్యుల లెడ్జర్‌లోని డివిడెండ్ లెక్కను ధృవీకరించవచ్చు.
+- [ ] Provide matching receipt/ledger examples for exceptions, if available: a late or partial payment with interest calculation; an advance or multiple payment showing FIFO allocation; a cancelled/reversed receipt; and an adjustment/waiver. Show the resulting balance, keeping interest/penalty separate.
+- [ ] మినహాయింపు సందర్భాలకు సరిపడే రసీదు/లెడ్జర్ ఉదాహరణలు, అందుబాటులో ఉంటే, ఇవ్వండి: వడ్డీ లెక్కతో ఆలస్య లేదా పాక్షిక చెల్లింపు; FIFO కేటాయింపు చూపించే అడ్వాన్స్ లేదా బహుళ చెల్లింపు; రద్దు/రివర్స్ చేసిన రసీదు; సర్దుబాటు/మాఫీ. వడ్డీ/జరిమానాను విడిగా చూపించి చివరి బాకీని తెలియజేయండి.
+
+#### Useful for the legal-records review / చట్టపరమైన రికార్డుల పరిశీలనకు ఉపయోగపడేవి
+
+- [ ] **Current official Andhra Pradesh references** the company relies on: applicable Chit Funds Act/Andhra Pradesh Rules and amendments/notifications, and any Registrar-approved agreement, prescribed forms or written guidance. A file copy, official link, or reference number/date is helpful. Also share the blank formats/process currently used for auction notices/minutes, subscriber register/ledger, receipt book, prize-payment voucher, and security/guarantor records.
+- [ ] కంపెనీ ఆధారపడుతున్న **ప్రస్తుత ఆంధ్రప్రదేశ్ అధికారిక ఆధారాలు**: వర్తించే Chit Funds Act/ఆంధ్రప్రదేశ్ Rules మరియు సవరణలు/నోటిఫికేషన్లు, రిజిస్ట్రార్ ఆమోదించిన ఒప్పందం, నిర్దేశిత ఫారమ్‌లు లేదా లిఖితపూర్వక మార్గదర్శకాలు. పత్రం, అధికారిక లింక్ లేదా సూచన సంఖ్య/తేదీ పంపండి. వేలం నోటీసు/మినిట్స్, చందాదారుల రిజిస్టర్/లెడ్జర్, రసీదు పుస్తకం, బహుమతి చెల్లింపు వౌచర్, భద్రత/గ్యారంటర్ రికార్డుల కోసం ప్రస్తుతం వాడే ఖాళీ నమూనాలు/విధానం కూడా పంపండి.
+
+If a document is unavailable, please answer the corresponding item in writing and say which items apply differently to other groups. Do not send original records; anonymised copies are sufficient for this review.
+
+ఏదైనా పత్రం అందుబాటులో లేకపోతే, దానికి సంబంధించిన అంశానికి లిఖితపూర్వకంగా సమాధానం ఇచ్చి, ఇతర గ్రూపులకు ఏ అంశాలు భిన్నంగా వర్తిస్తాయో చెప్పండి. అసలు రికార్డులు పంపవద్దు; ఈ పరిశీలనకు గుర్తింపు వివరాలు తొలగించిన ప్రతులు సరిపోతాయి.

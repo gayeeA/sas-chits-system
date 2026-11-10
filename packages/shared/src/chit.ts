@@ -32,51 +32,52 @@ export const toPaise = (v: string | number) => Math.round((Number(v) || 0) * 100
 export const toRupees = (p: number | null | undefined) => (p || 0) / 100
 export const rupees = (p: number) => '₹' + (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })
 export const netInstalment = (gross: number, dividend: number) => Math.max(0, gross - dividend)
-/** Legacy calculation helper; the auction UI requires a manual agreed dividend until the company formula is verified. */
-export const dividendPerMember = (chitValue: number, commPct: number, discount: number, members: number) =>
-  Math.max(0, Math.round((discount - (chitValue * commPct) / 100) / members))
 
 export const calculatePenalty = ({ amount, daysLate, config }: { amount: number; daysLate: number; config: GroupRuleConfig }) => {
-  if (config.penalty_mode === 'none' || amount <= 0) return 0
-  const lateDays = Math.max(0, daysLate - config.grace_days)
-  if (config.penalty_mode === 'per_day') return lateDays * config.penalty_value
-  if (config.penalty_mode === 'percent') return Math.round((amount * config.penalty_value) / 100)
+  const safeAmount = Math.max(0, Number(amount) || 0)
+  const safeGraceDays = Math.max(0, Number(config.grace_days) || 0)
+  const safePenaltyValue = Math.max(0, Number(config.penalty_value) || 0)
+
+  if (config.penalty_mode === 'none' || safeAmount <= 0) return 0
+  const lateDays = Math.max(0, Number(daysLate) || 0) - safeGraceDays
+  if (lateDays <= 0) return 0
+  if (config.penalty_mode === 'per_day') return lateDays * safePenaltyValue
+  if (config.penalty_mode === 'percent') return Math.round((safeAmount * safePenaltyValue) / 100)
   return 0
 }
 
 export const allocatePayment = ({
   arrears,
   current,
-  future,
   penalty,
-  others,
   amount,
 }: {
   arrears: number
   current: number
-  future: number
   penalty: number
-  others: number
   amount: number
 }) => {
-  let remaining = Math.max(0, amount)
-  const allocations = { arrears: 0, current: 0, future: 0, penalty: 0, others: 0 }
+  const available = {
+    arrears: Math.max(0, Number(arrears) || 0),
+    current: Math.max(0, Number(current) || 0),
+    penalty: Math.max(0, Number(penalty) || 0),
+  }
+  let remaining = Math.max(0, Number(amount) || 0)
+  const allocations = { arrears: 0, current: 0, penalty: 0, advance: 0 }
   const order = [
-    ['arrears', arrears],
-    ['current', current],
-    ['future', future],
-    ['penalty', penalty],
-    ['others', others],
+    ['arrears', available.arrears],
+    ['current', available.current],
+    ['penalty', available.penalty],
   ] as const
 
   for (const [key, value] of order) {
     const applied = Math.min(value, remaining)
     allocations[key] = applied
     remaining -= applied
-    if (remaining <= 0) break
   }
 
-  return { ...allocations, remaining }
+  allocations.advance = remaining
+  return allocations
 }
 
 // ---------- Dates and months (month labels are 'YYYY-MM', dates are 'YYYY-MM-DD' in local time) ----------
@@ -118,24 +119,30 @@ export const groupEndMonth = (startDate: string | null | undefined, months: numb
  * - commission = chit value × commission %
  * - commission_from 'discount': dividend pool = discount − commission; winner prize = chit value − discount
  * - commission_from 'payout':   dividend pool = discount;              winner prize = chit value − discount − commission
- * - suggested dividend per member = pool ÷ members, rounded down to `roundTo` paise (default ₹1)
+ * - suggested dividend per ticket = pool ÷ ticket count, rounded down to `roundTo` paise (default ₹1)
  */
-export function auctionCalc({ chitValue, discount, commissionPct, members, commissionFrom = 'discount', roundTo = 100 }: {
-  chitValue: number; discount: number; commissionPct: number; members: number
+export function auctionCalc({ chitValue, discount, commissionPct, ticketCount, commissionFrom = 'discount', roundTo = 100 }: {
+  chitValue: number; discount: number; commissionPct: number; ticketCount: number
   commissionFrom?: 'discount' | 'payout'; roundTo?: number
 }) {
-  const commission = Math.round((chitValue * (commissionPct || 0)) / 100)
+  const safeChitValue = Math.max(0, Number(chitValue) || 0)
+  const safeDiscount = Math.max(0, Number(discount) || 0)
+  const safeCommissionPct = Math.max(0, Number(commissionPct) || 0)
+  const safeTicketCount = Math.max(0, Number(ticketCount) || 0)
+  const safeRoundTo = Math.max(0, Number(roundTo) || 0)
+
+  const commission = Math.round((safeChitValue * safeCommissionPct) / 100)
   const fromDiscount = commissionFrom !== 'payout'
-  const dividendPool = Math.max(0, discount - (fromDiscount ? commission : 0))
-  const raw = members > 0 ? dividendPool / members : 0
-  const dividendPerMember = roundTo > 0 ? Math.floor(raw / roundTo) * roundTo : Math.floor(raw)
-  const prizeAmount = Math.max(0, chitValue - discount - (fromDiscount ? 0 : commission))
+  const dividendPool = Math.max(0, safeDiscount - (fromDiscount ? commission : 0))
+  const raw = safeTicketCount > 0 ? dividendPool / safeTicketCount : 0
+  const dividendPerTicket = safeRoundTo > 0 ? Math.floor(raw / safeRoundTo) * safeRoundTo : Math.floor(raw)
+  const prizeAmount = Math.max(0, safeChitValue - safeDiscount - (fromDiscount ? 0 : commission))
   return {
     commission,
     commissionDeductedFromPayout: fromDiscount ? 0 : commission,
     dividendPool,
-    dividendPerMember,
-    dividendRemainder: dividendPool - dividendPerMember * Math.max(members, 0),
+    dividendPerTicket,
+    dividendRemainder: dividendPool - dividendPerTicket * safeTicketCount,
     prizeAmount,
   }
 }

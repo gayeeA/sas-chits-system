@@ -47,7 +47,7 @@ export default function GroupsPage() {
           <td><Link to={`/groups/${g.id}`}><b>{g.series}</b></Link><div className="muted small">{g.name}</div></td>
           <td className="r"><Money value={g.chit_value} /></td>
           <td className="r"><Money value={g.gross_installment} /></td>
-          <td>{tickets}/{g.member_count ?? g.months}</td>
+          <td>{tickets}/{g.member_count ?? 'Not set'}</td>
           <td><span className="meter inline"><span style={{ width: `${Math.min(100, (done / g.months) * 100)}%` }} /></span> {done}/{g.months}</td>
           <td>{g.start_date ? `${formatDate(g.start_date)} → ${monthName(groupEndMonth(g.start_date, g.months))}` : '—'}</td>
           <td>{g.auction_day ?? '—'} / {g.due_day ?? '—'}</td>

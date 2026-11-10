@@ -151,6 +151,7 @@ export default function CollectScreen({ navigation, route }: ScreenProps<'Collec
     <View style={[st.card, { marginTop: 8 }]}>
       <Text>Previous due: {rupees(due.arrears)}</Text>
       <Text>This month: {rupees(due.current_balance)}</Text>
+      <Text>Advance credit: {rupees(Number(due.advance_credit) || 0)}</Text>
       <Text style={st.name}>Total outstanding: {rupees(due.total_outstanding)}</Text>
     </View>
 
@@ -175,8 +176,9 @@ export default function CollectScreen({ navigation, route }: ScreenProps<'Collec
 
     {quote && <View style={st.card}><Text style={st.name}>Account preview</Text>
       <Text>Current due {rupees(quote.current_due)} · Arrears {rupees(quote.arrears_due)}</Text>
-      <Text>Future {rupees(quote.future_due)} · Penalty {rupees(quote.penalty_due)}</Text>
+      <Text>Upcoming instalments (not prepaid) {rupees(quote.future_due)} · Penalty {rupees(quote.penalty_due)}</Text>
       <Text>Dividend allowed {rupees(quote.dividend_allowed)} · Forfeited {rupees(quote.dividend_forfeited)}</Text>
+      <Text>Apply oldest due instalments first; any excess after charges is kept as advance credit.</Text>
     </View>}
     <View style={[st.row, { flexWrap: 'wrap' }]}>{PAYMENT_MODES.map(mode =>
       <TouchableOpacity key={mode} style={[st.chip, { minWidth: '45%' }, form.mode === mode && st.chipOn]} onPress={() => setForm({ ...form, mode })}>

@@ -182,11 +182,12 @@ export default function MemberDetailPage() {
       </section>
       <section className="card">
         <div className="card-head"><h3>Chit groups</h3>{auth.isOwner && <button className="small" onClick={() => setAssigning(true)}>+ Assign to group</button>}</div>
-        {tickets.length ? <table><thead><tr><th>Group</th><th>Ticket</th><th>Status</th><th>Collector</th><th className="r">Outstanding</th></tr></thead>
+        {tickets.length ? <table><thead><tr><th>Group</th><th>Ticket</th><th>Status</th><th>Collector</th><th className="r">Advance credit</th><th className="r">Outstanding</th></tr></thead>
           <tbody>{tickets.map(t => <tr key={t.membership_id}>
             <td><Link to={`/groups/${t.group_id}`}>{t.series}</Link></td><td>#{t.ticket_no}</td>
             <td>{t.prized ? <Badge status="LIFTED">Lifted</Badge> : <Badge status={t.membership_status} />}</td>
             <td>{auth.isManager ? <select aria-label={`Collector for ${t.series} ticket ${t.ticket_no}`} value={t.assigned_agent ?? ''} onChange={e => assignCollector(t.membership_id, e.target.value)}><option value="">Unassigned</option>{staff.data?.filter((p: any) => ['clerk', 'agent'].includes(p.role)).map((p: any) => <option key={p.id} value={p.id}>{p.full_name || p.role}</option>)}</select> : (staff.data?.find((p: any) => p.id === t.assigned_agent)?.full_name || '—')}</td>
+            <td className="r"><Money value={t.advance_credit} /></td>
             <td className="r">{t.total_outstanding ? <Money value={t.total_outstanding} strong /> : '—'}</td>
           </tr>)}</tbody></table> : <Empty>Not in any group yet.</Empty>}
       </section>
@@ -272,7 +273,7 @@ function AssignGroup({ memberId, onSaved }: { memberId: string; onSaved: () => v
     <div className="grid">
       <SelectField label="Group" name="groupId" values={form} setValues={chooseGroup} required
         options={(data?.groups ?? []).map(g => [g.id,
-          `${g.series}${g.name ? ' · ' + g.name : ''} (${(data?.tickets ?? []).filter(t => t.group_id === g.id).length}/${g.member_count ?? g.months})`])} />
+          `${g.series}${g.name ? ' · ' + g.name : ''} (${(data?.tickets ?? []).filter(t => t.group_id === g.id).length}/${g.member_count ?? 'ticket count not set'})`])} />
       <Field label="Ticket number" name="ticket" values={form} setValues={chooseGroup} type="number" required />
       <Field label="Joining date" name="joinedOn" values={form} setValues={chooseGroup} type="date" />
     </div>

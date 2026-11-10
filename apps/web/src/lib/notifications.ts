@@ -34,8 +34,12 @@ export async function fetchNotifications(isOwner: boolean): Promise<Notification
     } else if (started && !thisMonth && group.auction_day && dateInMonth(month, group.auction_day) < todayISO()) {
       alerts.push({ tone: 'warn', text: `${group.series}: ${monthName(month)} auction date has passed but no auction is recorded.`, to: '/auctions' })
     }
-    const vacant = (group.member_count ?? group.months) - ticketsByGroup(group.id)
-    if (vacant > 0) alerts.push({ tone: 'info', text: `${group.series} has ${vacant} vacant ticket(s).`, to: `/groups/${group.id}` })
+    if (!group.member_count) {
+      alerts.push({ tone: 'warn', text: `${group.series}: set the registered total ticket count before recording auctions or assigning tickets.`, to: `/groups/${group.id}` })
+    } else {
+      const vacant = group.member_count - ticketsByGroup(group.id)
+      if (vacant > 0) alerts.push({ tone: 'info', text: `${group.series} has ${vacant} vacant ticket(s).`, to: `/groups/${group.id}` })
+    }
     if ((group.rule_config?.prized_member_instalment ?? 'unset') === 'unset') {
       alerts.push({ tone: 'warn', text: `${group.series}: set the prized-member instalment rule before its next auction.`, to: `/groups/${group.id}` })
     }

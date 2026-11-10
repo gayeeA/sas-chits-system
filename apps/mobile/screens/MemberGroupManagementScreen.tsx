@@ -130,13 +130,19 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
     setSearch('')
     setTargetCustomer(form.mode === 'replace' && form.ticket ? form.ticket.customer_id : '')
     const taken = tickets.filter(ticket => ticket.group_id === groupId).map(ticket => ticket.ticket_no)
-    const firstFree = Array.from({ length: (selectedGroup?.member_count ?? selectedGroup?.months ?? 0) + taken.length + 1 }, (_, index) => index + 1)
-      .find(number => !taken.includes(number)) ?? 1
+    const firstFree = selectedGroup?.member_count
+      ? Array.from({ length: selectedGroup.member_count + taken.length + 1 }, (_, index) => index + 1)
+        .find(number => !taken.includes(number)) ?? ''
+      : ''
     setTicketNumber(String(form.mode === 'replace' && form.ticket ? form.ticket.ticket_no : firstFree))
   }
 
   const saveTicket = async () => {
     if (!selectedGroup || !targetCustomer || !Number(ticketNumber)) return
+    if (!selectedGroup.member_count) {
+      Alert.alert('Ticket count is not set', 'Set the registered total ticket count on this group before assigning tickets.')
+      return
+    }
     setSaving(true)
     const result = ticketForm?.mode === 'replace' && ticketForm.ticket
       ? await supabase.rpc('replace_membership_assignment', {
@@ -240,7 +246,7 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
           setTicketForm(null)
         }}>
           <View style={st.row}><Text style={[st.name, { flex: 1 }]}>{groupName(group)}</Text><Text style={st.lb}>{group.status}</Text></View>
-          <Text style={st.hint}>{tickets.filter(ticket => ticket.group_id === group.id && ticket.membership_status === 'ACTIVE').length}/{group.member_count ?? group.months} active tickets</Text>
+          <Text style={st.hint}>{tickets.filter(ticket => ticket.group_id === group.id && ticket.membership_status === 'ACTIVE').length}/{group.member_count ?? 'ticket count not set'} active tickets</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[st.smallBtn, { alignSelf: 'flex-start', marginTop: 8 }]} onPress={() => removeGroup(group)}>
           <Text style={{ color: '#820F10' }}>Delete empty group</Text>
@@ -253,7 +259,9 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
       </View>)}
       {selectedGroup && <>
         <Text style={st.name}>{groupName(selectedGroup)} · Tickets</Text>
-        <TouchableOpacity style={st.btn} onPress={() => openTicketForm({ mode: 'add' })}><Text style={st.bt}>＋ Add member to this group</Text></TouchableOpacity>
+        <TouchableOpacity style={[st.btn, !selectedGroup.member_count && { opacity: 0.4 }]} disabled={!selectedGroup.member_count}
+          onPress={() => openTicketForm({ mode: 'add' })}><Text style={st.bt}>＋ Add member to this group</Text></TouchableOpacity>
+        {!selectedGroup.member_count && <Text style={st.hint}>Set the registered total ticket count in group settings before assigning tickets.</Text>}
         {groupTickets.map(ticket => <View key={ticket.membership_id} style={st.card}>
           <Text style={st.name}>#{ticket.ticket_no} · {ticket.name}</Text>
           <Text style={st.hint}>{ticket.member_code ?? ''} · {ticket.membership_status}</Text>

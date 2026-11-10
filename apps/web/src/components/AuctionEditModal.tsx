@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { toPaise, toRupees } from '../chit'
+import { auctionCalc, rupees, toPaise, toRupees } from '../chit'
 import { errorText, fetchAll, must, useAsync } from '../lib/data'
 import { supabase } from '../supabase'
 import { ConfirmModal, Loading, Modal } from './ui'
@@ -14,9 +14,6 @@ export default function AuctionEditModal({ auction, group, onSaved, onCancel }: 
   const [form, setForm] = useState<any>({
     winner: auction.winner_membership ?? '',
     discount: String(toRupees(auction.discount_bid)),
-    dividend: String(toRupees(auction.dividend)),
-    commission: String(toRupees(auction.commission)),
-    prize: auction.prize_amount == null ? '' : String(toRupees(auction.prize_amount)),
     auctionDate: auction.auction_date ?? '',
     notes: auction.notes ?? '',
   })
@@ -42,22 +39,39 @@ export default function AuctionEditModal({ auction, group, onSaved, onCancel }: 
   const eligible = (tickets.data ?? []).filter((ticket: any) =>
     ticket.status === 'ACTIVE' || ticket.id === auction.winner_membership)
   const discount = toPaise(form.discount)
-  const commission = toPaise(form.commission)
-  const dividend = toPaise(form.dividend)
-  const prize = form.prize === '' ? null : toPaise(form.prize)
+  const financialInputsChanged = (form.winner || null) !== auction.winner_membership || discount !== Number(auction.discount_bid)
+  const ticketCount = Number(group.member_count) || 0
+  const commissionConfigured = group.commission_pct != null && ticketCount > 0
+  const calc = auctionCalc({
+    chitValue: group.chit_value,
+    discount,
+    commissionPct: Number(group.commission_pct) || 0,
+    ticketCount,
+    commissionFrom: group.rule_config?.commission_from ?? 'discount',
+  })
+  const commission = financialInputsChanged
+    ? (form.winner ? calc.commission : 0)
+    : Number(auction.commission)
+  const dividend = financialInputsChanged
+    ? (form.winner ? calc.dividendPerTicket : 0)
+    : Number(auction.dividend)
+  const prize = financialInputsChanged
+    ? (form.winner ? calc.prizeAmount : null)
+    : auction.prize_amount
   const bidList = Object.entries(bids)
     .filter(([, amount]) => Number(amount) > 0)
     .map(([membership_id, amount]) => ({ membership_id, bid: toPaise(amount) }))
   const valid = tickets.data && auctionBids.data && discount >= 0 && discount <= group.chit_value &&
-    commission >= 0 && dividend >= 0 && (prize == null || prize >= 0) &&
-    (form.winner || (discount === 0 && commission === 0 && bidList.length === 0)) &&
+    (!financialInputsChanged || commissionConfigured) &&
+    (form.winner || (discount === 0 && commission === 0 && dividend === 0 && prize == null && bidList.length === 0)) &&
     bidList.every(bid => bid.bid <= group.chit_value)
 
   const save = () => {
     setError('')
     const winner = eligible.find((ticket: any) => ticket.id === form.winner)
     setConfirmSummary(`Winner: ${winner ? `#${winner.ticket_no} ${winner.customers?.name}` : 'No winner (company chit)'}\n` +
-      `Bid/discount: ₹${form.discount || 0}\nDividend per member: ₹${form.dividend || 0}`)
+      `Bid/discount: ${rupees(discount)}\nDividend per ticket: ${rupees(dividend)}\n` +
+      `Foreman commission: ${rupees(commission)}\nPrize amount: ${prize == null ? '—' : rupees(prize)}`)
   }
 
   const confirmSave = async () => {
@@ -96,10 +110,11 @@ export default function AuctionEditModal({ auction, group, onSaved, onCancel }: 
               options={eligible.map((ticket: any) => [ticket.id, `#${ticket.ticket_no} ${ticket.customers?.name ?? ''}`])} />
             <Field label="Auction date" name="auctionDate" values={form} setValues={setForm} type="date" />
             <Field label="Winning bid / discount (₹)" name="discount" values={form} setValues={setForm} type="number" min={0} />
-            <Field label="Dividend per member (₹)" name="dividend" values={form} setValues={setForm} type="number" min={0} />
-            <Field label="Commission (₹)" name="commission" values={form} setValues={setForm} type="number" min={0} />
-            <Field label="Prize amount (₹)" name="prize" values={form} setValues={setForm} type="number" min={0} />
+            <label><span>Dividend per ticket</span><input value={rupees(dividend)} readOnly /></label>
+            <label><span>Foreman commission</span><input value={rupees(commission)} readOnly /></label>
+            <label><span>Prize amount</span><input value={prize == null ? '—' : rupees(prize)} readOnly /></label>
           </div>
+          {!commissionConfigured && <p className="warn-text">The registered ticket count and commission rate must be configured before changing auction financial terms.</p>}
           {form.winner && <>
             <h3>Bids</h3>
             <div className="bid-grid">{eligible.map((ticket: any) => <label key={ticket.id}>

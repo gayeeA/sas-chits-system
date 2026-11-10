@@ -254,7 +254,7 @@ async function build(type: string, f: { from: string; to: string; month: string;
           paidOut: sum(payouts, g.id, 'net_payout'), commission: sum(auctions, g.id, 'commission'),
         })), columns: [
           { label: 'Group', get: r => r.series }, { label: 'Name', get: r => r.name }, { label: 'Status', get: r => r.status },
-          { label: 'Tickets', get: r => `${r.tickets}/${r.member_count ?? r.months}` }, { label: 'Months done', get: r => `${r.done}/${r.months}` },
+          { label: 'Tickets', get: r => `${r.tickets}/${r.member_count ?? 'Not set'}` }, { label: 'Months done', get: r => `${r.done}/${r.months}` },
           { label: 'Chit amount', get: r => r.chit_value, money: true }, { label: 'Collected', get: r => r.collected, money: true },
           { label: 'Outstanding', get: r => r.outstanding, money: true }, { label: 'Paid out', get: r => r.paidOut, money: true },
           { label: 'Commission', get: r => r.commission, money: true },
@@ -338,7 +338,7 @@ async function exportEverything(from: string, to: string, progress: (s: string) 
       { label: 'Group', value: a => a.chit_groups?.series }, { label: 'Month', value: a => a.month_label }, { label: 'Date', value: a => a.auction_date },
       { label: 'Winner', value: a => a.memberships ? `#${a.memberships.ticket_no} ${a.memberships.customers?.name}` : 'No winner' },
       { label: 'Bid/discount (₹)', value: a => R(a.discount_bid) }, { label: 'Commission (₹)', value: a => R(a.commission) },
-      { label: 'Dividend per member (₹)', value: a => R(a.dividend) }, { label: 'Prize amount (₹)', value: a => a.prize_amount == null ? '' : R(a.prize_amount) }] },
+      { label: 'Dividend per ticket (₹)', value: a => R(a.dividend) }, { label: 'Prize amount (₹)', value: a => a.prize_amount == null ? '' : R(a.prize_amount) }] },
     { name: 'Payouts', rows: payouts, columns: [
       { label: 'Voucher', value: p => p.voucher_no }, { label: 'Date', value: p => p.payout_date }, { label: 'Group', value: p => p.chit_groups?.series },
       { label: 'Month', value: p => p.auctions?.month_label }, { label: 'Member', value: p => p.memberships?.customers?.name }, { label: 'Mode', value: p => p.mode },

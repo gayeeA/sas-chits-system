@@ -164,7 +164,7 @@ export default function GroupDetailPage() {
         {auth.isManager && <Link className="btn pri" to={`/auctions?group=${g.id}`}>Record auction</Link>}
       </>} />
     <div className="stats">
-      <div className="stat"><span className="stat-label">Tickets filled</span><b className="stat-value">{activeTickets.length}/{g.member_count ?? g.months}</b></div>
+      <div className="stat"><span className="stat-label">Tickets filled</span><b className="stat-value">{activeTickets.length}/{g.member_count ?? 'Not set'}</b></div>
       <div className="stat"><span className="stat-label">Months done</span><b className="stat-value">{auctions.length}/{g.months}</b>
         <span className="stat-hint">Latest: {monthName(g.current_month)}</span></div>
       <div className="stat"><span className="stat-label">Outstanding</span><b className="stat-value">{rupees(outstanding)}</b></div>
@@ -200,7 +200,7 @@ export default function GroupDetailPage() {
           checked={reminderTickets.length > 0 && reminderTickets.every(t => selectedReminderIds.includes(t.membership_id))}
           onChange={e => setSelectedReminderIds(e.target.checked ? reminderTickets.map(t => t.membership_id) : [])} /></th>
           <th>Ticket</th><th>Member</th><th>Lifted</th><th className="r">Total paid</th><th className="r">Previous due</th>
-          <th className="r">This month</th><th className="r">Outstanding</th><th>Follow up</th>{auth.isOwner && <th />}</tr></thead>
+          <th className="r">Current gross / dividend / final due / balance</th><th className="r">Outstanding</th><th>Follow up</th>{auth.isOwner && <th />}</tr></thead>
         <tbody>{tickets.map(t => <tr key={t.membership_id} className={t.membership_status === 'WITHDRAWN' ? 'struck' : ''}>
           {auth.isOwner && <td><input type="checkbox" aria-label={`Select ticket #${t.ticket_no} for removal`}
             checked={selectedTicketIds.includes(t.membership_id)}
@@ -220,7 +220,10 @@ export default function GroupDetailPage() {
           <td>{liftedIn(t.membership_id) ? <Badge status="LIFTED">{monthName(liftedIn(t.membership_id))}</Badge> : '—'}</td>
           <td className="r"><Money value={t.total_paid} /></td>
           <td className="r">{t.arrears ? <Money value={t.arrears} /> : '—'}</td>
-          <td className="r">{t.current_balance ? <Money value={t.current_balance} /> : t.due ? <Badge status="PAID" /> : '—'}</td>
+          <td className="r"><div>Gross <Money value={t.current_gross} /></div><div>Dividend −<Money value={t.current_dividend} /></div>
+            <div>Final due <Money value={t.due} strong /></div><div>Balance <Money value={t.current_balance} /></div>
+            <div>Advance credit <Money value={t.advance_credit} /></div>
+            {!t.current_balance && t.due > 0 && <Badge status="PAID" />}</td>
           <td className="r">{t.total_outstanding ? <Money value={t.total_outstanding} strong /> : '—'}</td>
           <td>{t.total_outstanding > 0 && <ContactButtons phone={t.phone} message={reminderText({ name: t.name, amount: t.total_outstanding, series: g.series })} />}</td>
           {auth.isOwner && <td>{t.membership_status === 'ACTIVE'
@@ -279,11 +282,11 @@ export default function GroupDetailPage() {
         onSaved={async () => { setAdding(false); await reload() }} />
     </Modal>}
     {replacingTicket && <Modal title={`Change ticket #${replacingTicket.ticket_no}`} onClose={() => setReplacingTicket(null)}>
-      <ChangeTicket ticket={replacingTicket} taken={tickets.map(t => t.ticket_no)} ticketLimit={g.member_count ?? g.months}
+      <ChangeTicket ticket={replacingTicket} taken={tickets.map(t => t.ticket_no)} ticketLimit={g.member_count ?? 0}
         onSaved={async () => { setReplacingTicket(null); await reload() }} />
     </Modal>}
     {changingTicketNumber && <Modal title={`Change ticket number · #${changingTicketNumber.ticket_no}`} onClose={() => setChangingTicketNumber(null)}>
-      <ChangeTicketNumber ticket={changingTicketNumber} taken={tickets.map(t => t.ticket_no)} ticketLimit={g.member_count ?? g.months}
+      <ChangeTicketNumber ticket={changingTicketNumber} taken={tickets.map(t => t.ticket_no)} ticketLimit={g.member_count ?? 0}
         onSaved={async () => { setChangingTicketNumber(null); await reload() }} />
     </Modal>}
     {editingAuction && <AuctionEditModal auction={editingAuction} group={g}
@@ -405,7 +408,7 @@ function AddTicket({ group, taken, activeTicketCount, onSaved }: {
   group: any; taken: number[]; activeTicketCount: number; onSaved: () => void
 }) {
   const { data: members } = useAsync(() => fetchAll(() => supabase.from('customers').select('id,name,member_code,phone').eq('status', 'ACTIVE').order('name')), [])
-  const ticketLimit = group.member_count ?? group.months
+  const ticketLimit = group.member_count ?? 0
   const firstFree = Array.from({ length: ticketLimit }, (_, i) => i + 1).find(n => !taken.includes(n)) ?? ''
   const isFull = activeTicketCount >= ticketLimit
   const noTicketNumber = firstFree === ''

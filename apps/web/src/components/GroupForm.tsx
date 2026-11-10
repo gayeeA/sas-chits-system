@@ -15,7 +15,7 @@ export default function GroupForm({ group, locked, onSaved, onCancel }: {
 }) {
   const config = { ...CHIT_RULES.defaultGroupConfig, ...(group?.rule_config ?? {}) }
   const [form, setForm] = useState<any>(group ? {
-    name: group.name ?? '', series: group.series, chitValue: toRupees(group.chit_value), memberCount: group.member_count ?? group.months,
+    name: group.name ?? '', series: group.series, chitValue: toRupees(group.chit_value), memberCount: group.member_count ?? '',
     months: group.months, gross: toRupees(group.gross_installment), startDate: group.start_date ?? '', auctionDay: group.auction_day ?? '',
     dueDay: group.due_day ?? '', commissionPct: group.commission_pct ?? '', status: group.status ?? 'ACTIVE', notes: group.notes ?? '',
     commissionFrom: config.commission_from ?? 'discount', prizedRule: config.prized_member_instalment === 'unset' ? '' : config.prized_member_instalment,
@@ -35,12 +35,12 @@ export default function GroupForm({ group, locked, onSaved, onCancel }: {
       const v = Number(next.chitValue), m = Number(next.months)
       if (v > 0 && m > 0) next = { ...next, gross: Math.round((v / m) * 100) / 100 }
     }
-    if (next.months !== form.months && (!form.memberCount || form.memberCount == form.months)) next = { ...next, memberCount: next.months }
     setForm(next)
   }
 
   const valid = form.series?.trim() && Number(form.chitValue) > 0 && Number(form.months) > 0 && Number(form.gross) > 0 &&
-    Number(form.memberCount) > 0 && Number(form.dueDay) >= 1 && Number(form.dueDay) <= 31 && form.prizedRule
+    Number(form.memberCount) > 0 && form.commissionPct !== '' && form.commissionPct != null &&
+    Number(form.dueDay) >= 1 && Number(form.dueDay) <= 31 && form.prizedRule
   const end = groupEndMonth(form.startDate, Number(form.months) || 0)
   const totalCollect = toPaise(form.gross) * (Number(form.memberCount) || 0)
 
@@ -86,8 +86,8 @@ export default function GroupForm({ group, locked, onSaved, onCancel }: {
     <div className="grid">
       <Field label="Total chit amount (₹)" name="chitValue" values={form} setValues={set} type="number" required disabled={locked} />
       <Field label="Duration (months)" name="months" values={form} setValues={set} type="number" required disabled={locked} />
-      <Field label="Number of members / tickets" name="memberCount" values={form} setValues={set} type="number" required
-        hint="Used to split the dividend" />
+      <Field label="Registered total tickets" name="memberCount" values={form} setValues={set} type="number" required disabled={locked}
+        hint="Verify against the registered agreement. The dividend pool is divided by total tickets, not unique members." />
       <Field label="Monthly contribution (₹)" name="gross" values={form} setValues={set} type="number" required disabled={locked}
         hint="Full instalment before dividend" />
     </div>
@@ -101,7 +101,7 @@ export default function GroupForm({ group, locked, onSaved, onCancel }: {
     </div>
     <h3>Rules for this group</h3>
     <div className="grid">
-      <Field label="Foreman commission (%)" name="commissionPct" values={form} setValues={set} type="number" />
+      <Field label="Foreman commission (%)" name="commissionPct" values={form} setValues={set} type="number" required />
       <SelectField label="Commission is taken from" name="commissionFrom" values={form} setValues={set} placeholder={null}
         options={[['discount', 'Bid discount (reduces dividend)'], ['payout', "Winner's payout"]]} />
       <SelectField label="Prized member pays" name="prizedRule" values={form} setValues={set} required

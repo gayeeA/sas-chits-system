@@ -97,10 +97,12 @@ export default function DuesScreen({ navigation }: ScreenProps<'Dues'>) {
             <Text style={[st.name, { flexShrink: 0, color: due.total_outstanding ? '#820F10' : '#11734b' }]}>{due.total_outstanding ? rupees(due.total_outstanding) : 'Paid'}</Text></View>
           <Text style={st.hint}>{due.series} #{due.ticket_no} · {due.member_code}{due.phone ? ` · ${due.phone}` : ''}</Text>
           {due.total_outstanding > 0 ? (
-            <Text>Previous {rupees(due.arrears)} + this month {rupees(due.current_balance)}
+            <Text>Paid all time {rupees(Number(due.total_paid) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Previous due {rupees(due.arrears)}
+              {'\n'}This month: Gross {rupees(Number(due.current_gross) || 0)} · Dividend {rupees(Number(due.current_dividend) || 0)} · Final due {rupees(due.due)}
+              {' · '}Balance {rupees(due.current_balance)}
               {due.overdue > 0 ? `  ·  ${due.overdue_months} month(s) overdue` : ''}</Text>
           ) : (
-            <Text style={{ color: '#11734b', fontSize: 13 }}>Up to date · No pending dues</Text>
+            <Text style={{ color: '#11734b', fontSize: 13 }}>Paid all time {rupees(Number(due.total_paid) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Up to date</Text>
           )}
         </TouchableOpacity>
         <View style={[st.row, { marginTop: 8, justifyContent: 'flex-start', flexWrap: 'wrap', rowGap: 6 }]}>
