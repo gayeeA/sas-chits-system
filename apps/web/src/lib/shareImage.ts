@@ -4,10 +4,26 @@ import { whatsappLink } from '../chit'
 export async function shareElementAsImage({
   element, fileName, title, phone, message,
 }: { element: HTMLElement; fileName: string; title: string; phone?: string | null; message: string }) {
+  // Ensure the element is fully rendered before capturing
+  await new Promise(r => requestAnimationFrame(r));
+
   const testFile = new File(['image'], `${fileName}.png`, { type: 'image/png' })
   const canShareFile = typeof navigator.share === 'function' && !!navigator.canShare?.({ files: [testFile] })
   const chatWindow = !canShareFile && phone ? window.open('about:blank', '_blank') : null
-  const blob = await toBlob(element, { pixelRatio: 2, backgroundColor: '#fff', cacheBust: true })
+  // Clone the element into a visible container for rendering
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.position = 'fixed';
+  clone.style.top = '0';
+  clone.style.left = '0';
+  clone.style.opacity = '1';
+  clone.style.pointerEvents = 'none';
+  // Append temporarily to body
+  document.body.appendChild(clone);
+
+  const blob = await toBlob(clone, { pixelRatio: 2, backgroundColor: '#fff', cacheBust: true });
+  // Clean up the temporary clone
+  document.body.removeChild(clone);
+
   if (!blob) { chatWindow?.close(); throw new Error('Could not render the share image.') }
   const file = new File([blob], `${fileName}.png`, { type: 'image/png' })
   if (canShareFile) {

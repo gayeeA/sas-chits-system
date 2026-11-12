@@ -31,7 +31,32 @@ export const toPaise = (v: string | number) => Math.round((Number(v) || 0) * 100
 /** Paise → rupee number for editable inputs. */
 export const toRupees = (p: number | null | undefined) => (p || 0) / 100
 export const rupees = (p: number) => '₹' + (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })
-export const netInstalment = (gross: number, dividend: number) => Math.max(0, gross - dividend)
+export const netInstalment = (gross: number, dividend: number) => Math.max(0, gross - dividend);
+
+// Helper to compute amount paid after dividend (used in UI)
+export const paidAfterDividend = (inst: any) => {
+  const paid = Number(inst.paid) || 0;
+  const dividend = Number(inst.dividend) || 0;
+  return Math.max(0, paid - dividend);
+};
+
+// Helper to compute due amount after dividend (used in UI)
+export const dueAfterDividend = (inst: any) => {
+  const gross = Number(inst.gross) || 0;
+  const dividend = Number(inst.dividend) || 0;
+  return Math.max(0, gross - dividend);
+};
+
+// Helper to compute remaining balance after dividend and any payments (used in UI)
+export const remainingBalance = (inst: any) => {
+  const gross = Number(inst.gross) || 0;
+  const dividend = Number(inst.dividend) || 0;
+  const paidAfterDiv = paidAfterDividend(inst);
+  return Math.max(0, gross - dividend - paidAfterDiv);
+};
+
+
+
 
 export const calculateSimpleInterest360 = (principal: number, annualRate: number, days: number) => {
   if (!Number.isSafeInteger(principal) || principal < 0) throw new RangeError('Interest principal must be non-negative paise')

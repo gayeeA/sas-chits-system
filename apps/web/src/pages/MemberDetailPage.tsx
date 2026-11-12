@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { calculateSimpleInterest360, formatDate, memberLedgerWhatsAppText, monthName, reminderText, reminderTextTelugu, rupees, todayISO, toPaise, toRupees } from '../chit'
+import { calculateSimpleInterest360, formatDate, memberLedgerWhatsAppText, monthName, reminderText, reminderTextTelugu, rupees, todayISO, toPaise, toRupees, remainingBalance, paidAfterDividend, dueAfterDividend } from '../chit'
 import { useReceiptView } from '../App'
 import { errorText, fetchAll, must, RECEIPT_SELECT, useAsync, useAuth } from '../lib/data'
 import { Badge, ConfirmModal, ContactButtons, Empty, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
@@ -175,7 +175,7 @@ export default function MemberDetailPage() {
         {auth.isOwner && <button onClick={() => { void remove() }}>Delete member</button>}
       </>} />
     <ErrorMessage>{error}</ErrorMessage>
-    <div ref={statementImageRef} aria-hidden="true" style={{ position: 'fixed', left: -10000, top: 0, width: 720, padding: 32, background: '#fff', color: '#17152a', fontFamily: 'Arial, sans-serif' }}>
+    <div ref={statementImageRef} aria-hidden="true" style={{ position: 'fixed', top: 0, left: 0, width: 720, padding: 32, background: '#fff', color: '#17152a', fontFamily: 'Arial, sans-serif', opacity: 0, pointerEvents: 'none' }}>
       <div style={{ textAlign: 'center', borderBottom: '3px solid #E8B43C', paddingBottom: 16, marginBottom: 18 }}>
         <h1 style={{ color: '#2B1A6B', margin: 0 }}>Sri AndeSivaiah Chits Pvt. Ltd.</h1><p style={{ margin: '6px 0 0', color: '#666' }}>Tirupati · MEMBER STATEMENT</p>
       </div>
@@ -240,11 +240,11 @@ export default function MemberDetailPage() {
     <Tabs value={tab} onChange={setTab} tabs={[['dues', 'Instalments'], ['payments', `Payments (${receipts.length})`], ['lifts', `Lifts & payouts (${lifts.length})`], ['followups', `Follow-ups (${followups.length})`]]} />
     {tab === 'dues' && <>
       <section className="card">{installments.length ? <div className="table-wrap"><table>
-        <thead><tr><th>Group</th><th>Month</th><th>Due date</th><th className="r">Instalment</th><th className="r">Dividend</th><th className="r">Due</th><th className="r">Paid</th><th className="r">Balance</th><th>Status</th></tr></thead>
+        <thead><tr><th>Group</th><th>Month</th><th>Due date</th><th className="r">Instalment</th><th className="r">Dividend</th><th className="r">Due</th><th className="r">Paid</th><th className="r">Remaining balance</th><th>Status</th></tr></thead>
         <tbody>{[...installments].reverse().map(i => <tr key={i.installment_id}>
           <td>{i.series}</td><td>{monthName(i.month_label)}</td><td>{formatDate(i.due_date)}</td>
-          <td className="r"><Money value={i.gross} /></td><td className="r"><Money value={i.dividend} /></td><td className="r"><Money value={i.amount_due} /></td>
-          <td className="r"><Money value={i.paid} /></td><td className="r">{i.balance ? <Money value={i.balance} strong /> : '—'}</td>
+          <td className="r"><Money value={i.gross} /></td><td className="r"><Money value={i.dividend} /></td><td className="r"><Money value={dueAfterDividend(i)} /></td>
+          <td className="r"><Money value={paidAfterDividend(i)} /></td><td className="r">{i.balance !== null && i.balance !== undefined ? <Money value={remainingBalance(i)} strong /> : '—'}</td>
           <td><Badge status={i.status} />{i.is_partial && i.status === 'OVERDUE' && <span className="muted small"> part paid</span>}</td>
         </tr>)}</tbody></table></div> : <Empty>No instalments yet. They are created when each month's auction is recorded.</Empty>}</section>
 

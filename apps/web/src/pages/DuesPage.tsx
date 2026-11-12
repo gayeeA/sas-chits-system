@@ -45,7 +45,7 @@ export default function DuesPage() {
           { label: 'Applied to subscriptions (₹)', value: r => csvRupees(r.subscription_paid) },
           { label: 'Separate interest due (₹)', value: r => csvRupees(r.interest_due) },
           { label: 'Advance credit (₹)', value: r => csvRupees(r.advance_credit) },
-          { label: 'Previous due (₹)', value: r => csvRupees(r.arrears) }, { label: 'Current balance (₹)', value: r => csvRupees(r.current_balance) },
+          { label: 'Previous due (₹)', value: r => csvRupees(r.arrears) }, { label: 'Remaining balance (₹)', value: r => csvRupees(r.current_balance) },
           { label: 'Current gross instalment (₹)', value: r => csvRupees(r.current_gross) },
           { label: 'Current dividend (₹)', value: r => csvRupees(r.current_dividend) },
           { label: 'Current final due (₹)', value: r => csvRupees(r.due) },
@@ -60,7 +60,7 @@ export default function DuesPage() {
           { label: 'Gross instalment (₹)', value: r => csvRupees(r.gross) },
           { label: 'Dividend (₹)', value: r => csvRupees(r.dividend) },
           { label: 'Final due (₹)', value: r => csvRupees(r.amount_due) }, { label: 'Paid (₹)', value: r => csvRupees(r.paid) },
-          { label: 'Balance (₹)', value: r => csvRupees(r.balance) }, { label: 'Status', value: r => r.status },
+          { label: 'Remaining balance (₹)', value: r => csvRupees(r.gross - r.dividend - r.paid) }, { label: 'Status', value: r => r.status },
         ]} />} />
     <Tabs value={view} onChange={v => { setView(v); setStatus('unpaid') }} tabs={[['members', 'Member-wise outstanding'], ['month', 'Month-wise status']]} />
     <div className="filters">
@@ -132,7 +132,7 @@ export default function DuesPage() {
       <Loading show={monthRows.loading && !monthRows.data} />
       {monthRows.data && (instRows.length ? <section className="card"><div className="table-wrap"><table>
         <thead><tr><th>Member</th><th>Group / ticket</th><th>Due date</th><th className="r">Gross instalment</th><th className="r">Dividend</th>
-          <th className="r">Final due</th><th className="r">Paid</th><th className="r">Balance</th><th>Status</th><th>Follow up</th></tr></thead>
+          <th className="r">Final due</th><th className="r">Paid</th><th className="r">Remaining balance</th><th>Status</th><th>Follow up</th></tr></thead>
         <tbody>{instRows.map(r => <tr key={r.installment_id}>
           <td><Link to={`/members/${r.customer_id}`}>{r.member_name}</Link> <span className="muted small">{r.member_code}</span></td>
           <td>{r.series} #{r.ticket_no}</td><td>{formatDate(r.due_date)}</td>
