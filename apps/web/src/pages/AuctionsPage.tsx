@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { addMonths, auctionCalc, CHIT_RULES, currentMonth, formatDate, isMonthLabel, monthName, rupees, toPaise, toRupees, todayISO } from '../chit'
+import { addMonths, auctionCalc, CHIT_RULES, currentMonth, formatDate, groupMonthIndex, isMonthLabel, monthName, rupees, toPaise, toRupees, todayISO } from '../chit'
 import { csvRupees, errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
 import { Badge, ConfirmModal, Empty, ExportButton, Loading, Money, PageHeader } from '../components/ui'
 import { ErrorMessage, Field, SelectField, SuccessMessage, TextArea } from '../components/DataControls'
@@ -21,7 +21,7 @@ export default function AuctionsPage() {
   const { data, error, loading, reload } = useAsync(async () => {
     const [groups, auctions, payouts, bids] = await Promise.all([
       fetchAll(() => supabase.from('chit_groups').select('*').order('series')),
-      fetchAll(() => supabase.from('auctions').select('*, chit_groups(series,chit_value), memberships!auctions_winner_membership_fkey(ticket_no, customers(name))').order('month_label', { ascending: false })),
+      fetchAll(() => supabase.from('auctions').select('*, chit_groups(series,chit_value,months,start_date,rule_config), memberships!auctions_winner_membership_fkey(ticket_no, customers(name))').order('month_label', { ascending: false })),
       fetchAll(() => supabase.from('payouts').select('auction_id,net_payout,payout_date').eq('status', 'ACTIVE')),
       fetchAll(() => supabase.from('auction_bids').select('auction_id')),
     ])
@@ -75,7 +75,8 @@ export default function AuctionsPage() {
         const payout = payoutOf(a.id)
         return <tr key={a.id}>
           <td><Link to={`/groups/${a.group_id}`}>{a.chit_groups?.series}</Link></td><td>{monthName(a.month_label)}</td><td>{formatDate(a.auction_date)}</td>
-          <td>{a.memberships ? `#${a.memberships.ticket_no} ${a.memberships.customers?.name}` : <span className="muted">No winner (company chit)</span>}</td>
+          <td>{a.memberships ? `#${a.memberships.ticket_no} ${a.memberships.customers?.name}` : <span className="muted">
+            {isSealingAuction(a) ? 'Sealing period (no auction)' : 'No winner'}</span>}</td>
           <td>{data.bids.filter(b => b.auction_id === a.id).length || '—'}</td>
           <td className="r"><Money value={a.discount_bid} /></td><td className="r"><Money value={a.commission} /></td>
           <td className="r"><Money value={a.dividend} /></td><td className="r">{a.prize_amount != null ? <Money value={a.prize_amount} /> : '—'}</td>
@@ -99,6 +100,12 @@ export default function AuctionsPage() {
   </>
 }
 
+function isSealingAuction(auction: any) {
+  const sealingMonths = Number(auction.chit_groups?.rule_config?.sealing_period_months) || 0
+  const monthNumber = groupMonthIndex(auction.chit_groups?.start_date, auction.month_label)
+  return Boolean(sealingMonths && monthNumber != null && monthNumber >= 1 && monthNumber <= sealingMonths)
+}
+
 function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
   groups: any[]; auctions: any[]; initialGroup: string; onSaved: (message: string) => void; onCancel: () => void
 }) {
@@ -109,6 +116,9 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
   const [confirmSummary, setConfirmSummary] = useState('')
   const g = groups.find(x => x.id === form.groupId)
   const rules = { ...CHIT_RULES.defaultGroupConfig, ...(g?.rule_config ?? {}) }
+  const sealingMonths = Number(g?.rule_config?.sealing_period_months) || 0
+  const monthIndex = groupMonthIndex(g?.start_date, form.month) ?? 0
+  const isSealingMonth = Boolean(g && sealingMonths > 0 && monthIndex >= 1 && monthIndex <= sealingMonths)
 
   const tickets = useAsync(async () => g
     ? fetchAll(() => supabase.from('memberships').select('id,ticket_no,status,customers(name)').eq('group_id', g.id).order('ticket_no'))
@@ -132,24 +142,28 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
     if (form.type === 'auction' && top) setForm((f: any) => ({ ...f, winner: top.membership_id, discount: toRupees(top.bid) }))
   }, [top?.membership_id, top?.bid])
 
-  const noWinner = form.type === 'none'
+  const noWinner = isSealingMonth
+  const isDraw = form.type === 'draw' && !noWinner
   const ticketCount = Number(g?.member_count) || 0
-  const discount = noWinner ? 0 : toPaise(form.discount)
+  const discount = noWinner || isDraw ? 0 : toPaise(form.discount)
   const calc = useMemo(() => auctionCalc({
-    chitValue: g?.chit_value ?? 0, discount, commissionPct: Number(g?.commission_pct) || 0, ticketCount, commissionFrom: rules.commission_from,
-  }), [g?.chit_value, g?.commission_pct, discount, ticketCount, rules.commission_from])
+    chitValue: g?.chit_value ?? 0, discount, commissionPct: Number(g?.commission_pct) || 0, ticketCount,
+  }), [g?.chit_value, g?.commission_pct, discount, ticketCount])
   const commission = noWinner ? 0 : calc.commission
   const dividend = noWinner ? 0 : calc.dividendPerTicket
   const prize = noWinner ? null : calc.prizeAmount
   const duplicateMonth = groupAuctions.some(a => a.month_label === form.month)
   const winnerName = eligible.find(t => t.id === form.winner)
-  const valid = g && isMonthLabel(form.month) && !duplicateMonth && (noWinner || (form.winner && discount >= 0)) &&
+  const valid = g && isMonthLabel(form.month) && !duplicateMonth && (noWinner || (form.winner && (isDraw || bidList.length > 0) && discount >= 0)) &&
     discount <= (g?.chit_value ?? 0) && ticketCount > 0 && g.commission_pct != null &&
-    rules.prized_member_instalment !== 'unset' && dividend >= 0
+    rules.prized_member_instalment !== 'unset' && dividend >= 0 && !(sealingMonths > 0 && !g.start_date) &&
+    (!isDraw || Boolean(form.notes?.trim()))
 
   const save = async () => {
     const summary = noWinner
-      ? `${g.series} · ${monthName(form.month)}\nNo winner (company chit). Dividend per ticket: ${rupees(dividend)}.`
+      ? `${g.series} · ${monthName(form.month)}\nSealing period: no auction. Instalments will still be created for this month.`
+      : isDraw
+        ? `${g.series} · ${monthName(form.month)}\nDraw winner: #${winnerName?.ticket_no} ${(winnerName?.customers as any)?.name}\nNo bid discount; dividend per ticket: ${rupees(dividend)}.`
       : `${g.series} · ${monthName(form.month)}\nWinner: #${winnerName?.ticket_no} ${(winnerName?.customers as any)?.name}\nBid/discount: ${rupees(discount)}\nDividend per ticket: ${rupees(dividend)}\nPrize amount: ${rupees(prize!)}`
     setError('')
     setConfirmSummary(summary)
@@ -161,9 +175,10 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
       must(await supabase.rpc('record_auction_full', {
         p_group: g.id, p_month: form.month, p_winner: noWinner ? null : form.winner, p_bid: discount, p_div: dividend,
         p_auction_date: form.auctionDate || null, p_commission: noWinner ? 0 : commission, p_prize: prize,
-        p_bids: noWinner ? [] : bidList, p_notes: form.notes || null,
+        p_bids: noWinner || isDraw ? [] : bidList,
+        p_notes: [isSealingMonth ? 'Sealing period (no auction).' : isDraw ? 'DRAW (no bidder).' : '', form.notes || ''].filter(Boolean).join(' '),
       }))
-      onSaved(`Auction saved for ${g.series} ${monthName(form.month)}. Instalments for all active tickets are now created.`)
+      onSaved(`${isSealingMonth ? 'Sealing-period month' : isDraw ? 'Draw' : 'Auction'} saved for ${g.series} ${monthName(form.month)}. Instalments for all active tickets are now created.`)
     } catch (e) {
       setError(errorText(e))
     } finally {
@@ -179,16 +194,20 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
       <label><span>Month<i className="req"> *</i></span><input type="month" value={form.month ?? ''} onChange={e => setForm({ ...form, month: e.target.value })} />
         {duplicateMonth && <small className="er">This month already has an auction.</small>}</label>
       <Field label="Auction date" name="auctionDate" values={form} setValues={setForm} type="date" />
-      <SelectField label="Type" name="type" values={form} setValues={setForm} placeholder={null}
-        options={[['auction', 'Auction with a winner'], ['none', 'No auction (first month / company chit)']]} />
+      {isSealingMonth
+        ? <label><span>Type</span><input value={`Sealing period (month ${monthIndex} of ${sealingMonths})`} readOnly /></label>
+        : <SelectField label="Winner selection" name="type" values={form} setValues={setForm} placeholder={null}
+          options={[['auction', 'Auction'], ['draw', 'Draw (no bidder)']]} />}
     </div>
     {g && rules.prized_member_instalment === 'unset' && <p className="er">Set the “Prized member pays” rule on this group before recording an auction. <Link to={`/groups/${g.id}`}>Open group</Link></p>}
     {g && g.commission_pct == null && <p className="er">Set the foreman commission from the registered agreement on this group before recording an auction. <Link to={`/groups/${g.id}`}>Open group</Link></p>}
     {g && ticketCount <= 0 && <p className="er">Set the registered total ticket count on this group before recording an auction. <Link to={`/groups/${g.id}`}>Open group</Link></p>}
-    {g && <p className="muted small">{rupees(g.chit_value)} chit · {ticketCount || 'Ticket count not set'} tickets · {rupees(g.gross_installment)} monthly · month {groupAuctions.length + 1} of {g.months}</p>}
-    {g && ticketCount > 0 && <p className="muted small">Dividend is calculated per ticket using this configured count. Verify the count against the registered agreement.</p>}
+    {g && sealingMonths > 0 && !g.start_date && <p className="er">Set the group start date before recording a sealing-period month.</p>}
+    {g && <p className="muted small">{rupees(g.chit_value)} chit · {ticketCount || 'Ticket count not set'} tickets · {rupees(g.gross_installment)} monthly · month {groupAuctions.length + 1} of {g.months}
+      {sealingMonths > 0 ? ` · ${sealingMonths}-month sealing period` : ''}</p>}
+    {g && ticketCount > 0 && <p className="muted small">Ticket count equals group duration. Dividend is calculated per ticket using that count.</p>}
 
-    {g && !noWinner && <>
+    {g && !noWinner && !isDraw && <>
       <h3>Bids from participating tickets</h3>
       <p className="muted small">Enter the discount each member offered (leave blank if they did not bid). The highest bid is chosen as winner; you can change it below.</p>
       {eligible.length ? <div className="bid-grid">{eligible.map(t => <label key={t.id} className={form.winner === t.id ? 'winner' : ''}>
@@ -202,15 +221,21 @@ function AuctionForm({ groups, auctions, initialGroup, onSaved, onCancel }: {
         <label><span>Foreman commission</span><input value={`${g.commission_pct}% · ${rupees(commission)}`} readOnly /></label>
       </div>
     </>}
+    {g && isDraw && <div className="grid">
+      <SelectField label="Draw winner" name="winner" values={form} setValues={setForm} required
+        options={eligible.map(t => [t.id, `#${t.ticket_no} ${(t.customers as any)?.name}`])} />
+      <p className="muted small">Enter the draw time, location, proceeding method, witnesses/participants, and outcome in Notes. The winner must follow the registered agreement.</p>
+    </div>}
+
+    {isDraw && !form.notes?.trim() && <p className="er">Draw proceedings are required in Notes.</p>}
 
     {g && <div className="calc">
       <h3>Calculation</h3>
       <table><tbody>
         <tr><td>Chit amount</td><td className="r">{rupees(g.chit_value)}</td></tr>
         {!noWinner && <tr><td>− Winning bid / discount</td><td className="r">{rupees(discount)}</td></tr>}
-        {!noWinner && rules.commission_from === 'payout' && <tr><td>− Commission ({g.commission_pct}%)</td><td className="r">{rupees(commission)}</td></tr>}
         {!noWinner && <tr className="total"><td>Prize amount for winner (before other deductions)</td><td className="r">{rupees(prize ?? 0)}</td></tr>}
-        {!noWinner && <tr><td colSpan={2} className="muted small">Dividend pool: discount {rupees(discount)}{rules.commission_from !== 'payout' ? ` − commission ${rupees(commission)}` : ''} = {rupees(calc.dividendPool)} ÷ {ticketCount} tickets. Dividend is rounded down to whole rupees.</td></tr>}
+        {!noWinner && <tr><td colSpan={2} className="muted small">Dividend pool: discount {rupees(discount)} − commission {rupees(commission)} = {rupees(calc.dividendPool)} ÷ {ticketCount} tickets. Dividend is rounded down to whole rupees.</td></tr>}
         <tr><td>Dividend per ticket</td><td className="r">{rupees(dividend)}</td></tr>
         <tr className="total"><td>Each ticket pays for {monthName(form.month)}</td><td className="r">{rupees(Math.max(0, g.gross_installment - dividend))}</td></tr>
         {!noWinner && rules.prized_member_instalment === 'full_gross' && <tr><td colSpan={2} className="muted small">Winner pays the full {rupees(g.gross_installment)} this month (group rule).</td></tr>}

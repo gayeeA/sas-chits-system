@@ -103,6 +103,7 @@ export default function CollectPage() {
           <div className="stat"><span className="stat-label">{monthName(ticket.current_month)} due</span><b className="stat-value">{rupees(ticket.current_balance)}</b>
             <span className="stat-hint">Instalment {rupees(ticket.due)} · paid {rupees(ticket.paid)}</span></div>
           <div className="stat"><span className="stat-label">Advance credit</span><b className="stat-value">{rupees(Number(ticket.advance_credit) || 0)}</b></div>
+          <div className="stat"><span className="stat-label">Separate interest due</span><b className="stat-value">{rupees(Number(ticket.interest_due) || 0)}</b><span className="stat-hint">Not included in this subscription receipt</span></div>
           <div className={`stat ${ticket.total_outstanding ? 'bad' : 'good'}`}><span className="stat-label">Total outstanding</span><b className="stat-value">{rupees(ticket.total_outstanding)}</b>
             {ticket.overdue_months > 0 && <span className="stat-hint">{ticket.overdue_months} month(s) overdue</span>}</div>
         </div>

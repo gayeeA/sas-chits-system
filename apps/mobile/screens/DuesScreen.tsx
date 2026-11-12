@@ -50,13 +50,14 @@ export default function DuesScreen({ navigation }: ScreenProps<'Dues'>) {
     const matchesSearch = !q || searchTarget.includes(q)
     const matchesFilter =
       filter === 'all' ? true :
-      filter === 'due' ? due.total_outstanding > 0 :
-      filter === 'overdue' ? due.overdue > 0 :
-      due.total_outstanding === 0
+      filter === 'due' ? due.total_outstanding > 0 || due.interest_due > 0 :
+      filter === 'overdue' ? due.overdue > 0 || due.interest_due > 0 :
+      due.total_outstanding === 0 && due.interest_due === 0
     return matchesSearch && matchesFilter
   })
 
   const total = matches.reduce((s, d) => s + Number(d.total_outstanding), 0)
+  const interestTotal = matches.reduce((s, d) => s + Number(d.interest_due), 0)
 
   const open = (url: string) => Linking.openURL(url).catch(() => Alert.alert('Could not open', url))
 
@@ -87,22 +88,22 @@ export default function DuesScreen({ navigation }: ScreenProps<'Dues'>) {
       <TouchableOpacity key={key} style={[st.chip, filter === key && st.chipOn]} onPress={() => setFilter(key)}>
         <Text style={filter === key ? { color: '#fff' } : {}}>{label}</Text>
       </TouchableOpacity>)}</View>
-    <Text style={st.lb}>{matches.length} tickets · {rupees(total)} outstanding</Text>
+    <Text style={st.lb}>{matches.length} tickets · {rupees(total)} subscription dues · {rupees(interestTotal)} separate interest</Text>
     {!!error && <Text accessibilityRole="alert" style={{ color: '#820F10', marginBottom: 8 }}>{error}</Text>}
     <FlatList data={matches} keyExtractor={due => due.membership_id} refreshing={loading} onRefresh={load}
       ListEmptyComponent={<Text>{loading ? 'Loading dues…' : 'No members found.'}</Text>}
       renderItem={({ item: due }) => <View style={st.card}>
         <TouchableOpacity onPress={() => navigation.navigate('Collect', { due })}>
           <View style={st.row}><Text style={[st.name, { flex: 1, minWidth: 0, flexShrink: 1 }]}>{due.name}</Text>
-            <Text style={[st.name, { flexShrink: 0, color: due.total_outstanding ? '#820F10' : '#11734b' }]}>{due.total_outstanding ? rupees(due.total_outstanding) : 'Paid'}</Text></View>
+            <Text style={[st.name, { flexShrink: 0, color: due.total_outstanding || due.interest_due ? '#820F10' : '#11734b' }]}>{due.total_outstanding || due.interest_due ? rupees(due.total_outstanding + due.interest_due) : 'Paid'}</Text></View>
           <Text style={st.hint}>{due.series} #{due.ticket_no} · {due.member_code}{due.phone ? ` · ${due.phone}` : ''}</Text>
-          {due.total_outstanding > 0 ? (
-            <Text>Paid all time {rupees(Number(due.total_paid) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Previous due {rupees(due.arrears)}
-              {'\n'}This month: Gross {rupees(Number(due.current_gross) || 0)} · Dividend {rupees(Number(due.current_dividend) || 0)} · Final due {rupees(due.due)}
-              {' · '}Balance {rupees(due.current_balance)}
+          {due.total_outstanding > 0 || due.interest_due > 0 ? (
+            <Text>Cash received {rupees(Number(due.total_paid) || 0)} · Subscription applied {rupees(Number(due.subscription_paid) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Interest due {rupees(Number(due.interest_due) || 0)} · Previous due {rupees(due.arrears)}
+              {'\n'}This month: Gross {rupees(Number(due.current_gross) || 0)} · Dividend {rupees(Number(due.current_dividend) || 0)}
+              {' · '}Balance remaining {rupees(due.current_balance)}
               {due.overdue > 0 ? `  ·  ${due.overdue_months} month(s) overdue` : ''}</Text>
           ) : (
-            <Text style={{ color: '#11734b', fontSize: 13 }}>Paid all time {rupees(Number(due.total_paid) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Up to date</Text>
+            <Text style={{ color: '#11734b', fontSize: 13 }}>Cash received {rupees(Number(due.total_paid) || 0)} · Subscription applied {rupees(Number(due.subscription_paid) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Interest due {rupees(Number(due.interest_due) || 0)} · Up to date</Text>
           )}
         </TouchableOpacity>
         <View style={[st.row, { marginTop: 8, justifyContent: 'flex-start', flexWrap: 'wrap', rowGap: 6 }]}>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addMonths, allocatePayment, amountInWords, auctionCalc, calculatePenalty, CHIT_RULES, dateInMonth,
-  groupEndMonth, monthName, nextDateForDay, phoneDigits,
+  addMonths, allocatePayment, amountInWords, auctionCalc, calculatePenalty, calculateSimpleInterest360, CHIT_RULES, dateInMonth,
+  groupEndMonth, groupMonthIndex, monthName, nextDateForDay, phoneDigits,
 } from './chit'
 
 describe('amountInWords', () => {
@@ -77,25 +77,54 @@ describe('auctionCalc', () => {
     expect(2500000 - calc.dividendPerTicket).toBe(1750000)
   })
 
-  it('takes commission from the discount by default', () => {
+  it('reproduces all 40 months and the printed schedule totals', () => {
+    const discounts = [
+      0, 35000000, 0, ...Array(7).fill(35000000),
+      ...Array.from({ length: 30 }, (_, index) => (340000 - index * 10000) * 100),
+    ]
+    const calculations = discounts.map(discount => {
+      const calc = auctionCalc({ chitValue: 100000000, discount, commissionPct: 5, ticketCount: 40 })
+      return { dividend: calc.dividendPerTicket, payable: 2500000 - calc.dividendPerTicket }
+    })
+
+    expect(calculations).toHaveLength(40)
+    expect(calculations[1]).toEqual({ dividend: 750000, payable: 1750000 })
+    expect(calculations[10]).toEqual({ dividend: 725000, payable: 1775000 })
+    expect(calculations[19]).toEqual({ dividend: 500000, payable: 2000000 })
+    expect(calculations[38]).toEqual({ dividend: 25000, payable: 2475000 })
+    expect(calculations[39]).toEqual({ dividend: 0, payable: 2500000 })
+    expect(calculations.reduce((sum, row) => sum + row.dividend, 0)).toBe(16875000)
+    expect(calculations.reduce((sum, row) => sum + row.payable, 0)).toBe(83125000)
+  })
+
+  it.each([
+    [34000000, 725000, 1775000],
+    [25000000, 500000, 2000000],
+    [6000000, 25000, 2475000],
+    [5000000, 0, 2500000],
+  ])('reproduces the historical schedule for discount %i paise', (discount, dividend, payable) => {
+    const calc = auctionCalc({ chitValue: 100000000, discount, commissionPct: 5, ticketCount: 40 })
+    expect(calc.dividendPerTicket).toBe(dividend)
+    expect(2500000 - calc.dividendPerTicket).toBe(payable)
+  })
+
+  it('does not create a discount dividend for a draw with no bid', () => {
+    const calc = auctionCalc({ chitValue: 100000000, discount: 0, commissionPct: 5, ticketCount: 40 })
+    expect(calc.dividendPool).toBe(0)
+    expect(calc.dividendPerTicket).toBe(0)
+    expect(calc.prizeAmount).toBe(100000000)
+  })
+
+  it('takes commission from the discount pool', () => {
     // ₹5,00,000 chit, ₹1,00,000 discount, 5% commission, 20 members
     const calc = auctionCalc({ chitValue: 50000000, discount: 10000000, commissionPct: 5, ticketCount: 20 })
     expect(calc).toEqual({
       commission: 2500000,
-      commissionDeductedFromPayout: 0,
       dividendPool: 7500000,
       dividendPerTicket: 375000,
       dividendRemainder: 0,
       prizeAmount: 40000000,
     })
-  })
-
-  it('can deduct commission from the winner payout instead', () => {
-    const calc = auctionCalc({ chitValue: 50000000, discount: 10000000, commissionPct: 5, ticketCount: 20, commissionFrom: 'payout' })
-    expect(calc.dividendPool).toBe(10000000)
-    expect(calc.dividendPerTicket).toBe(500000)
-    expect(calc.prizeAmount).toBe(37500000)
-    expect(calc.commissionDeductedFromPayout).toBe(2500000)
   })
 
   it('rounds the suggested dividend down to whole rupees and reports the remainder', () => {
@@ -105,12 +134,28 @@ describe('auctionCalc', () => {
   })
 })
 
+describe('calculateSimpleInterest360', () => {
+  it('uses simple interest on a 360-day year and rounds to paise', () => {
+    expect(calculateSimpleInterest360(10_000_000, 18, 30)).toBe(150_000)
+    expect(calculateSimpleInterest360(10_000_000, 15, 30)).toBe(125_000)
+  })
+
+  it('rejects invalid principal, rate, or day count', () => {
+    expect(() => calculateSimpleInterest360(-1, 15, 30)).toThrow(RangeError)
+    expect(() => calculateSimpleInterest360(100, 101, 30)).toThrow(RangeError)
+    expect(() => calculateSimpleInterest360(100, 15, 1.5)).toThrow(RangeError)
+  })
+})
+
 describe('month helpers', () => {
   it('adds months across years and names them', () => {
     expect(addMonths('2026-11', 3)).toBe('2027-02')
     expect(addMonths('2026-01', -1)).toBe('2025-12')
     expect(monthName('2026-10')).toBe('Oct 2026')
     expect(groupEndMonth('2026-08-01', 20)).toBe('2028-03')
+    expect(groupMonthIndex('2026-08-01', '2026-08')).toBe(1)
+    expect(groupMonthIndex('2026-08-01', '2027-01')).toBe(6)
+    expect(groupMonthIndex('2026-08-01', 'invalid')).toBeNull()
   })
 
   it('clamps day-of-month and finds the next date', () => {

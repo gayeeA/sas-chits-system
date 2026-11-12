@@ -8,6 +8,8 @@ describe('database setup errors', () => {
     expect(message).toContain('013_auction_and_ticket_edits.sql')
     expect(message).toContain('014_dues_display_breakdown.sql')
     expect(message).toContain('015_auction_dividends_fifo_advances.sql')
+    expect(message).toContain('016_financial_calculation_guards.sql')
+    expect(message).toContain('017_confirmed_member_interest_ledger.sql')
   })
 
   it('preserves unrelated database errors', () => {

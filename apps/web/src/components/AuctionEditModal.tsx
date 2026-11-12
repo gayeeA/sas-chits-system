@@ -47,7 +47,6 @@ export default function AuctionEditModal({ auction, group, onSaved, onCancel }: 
     discount,
     commissionPct: Number(group.commission_pct) || 0,
     ticketCount,
-    commissionFrom: group.rule_config?.commission_from ?? 'discount',
   })
   const commission = financialInputsChanged
     ? (form.winner ? calc.commission : 0)
@@ -69,7 +68,7 @@ export default function AuctionEditModal({ auction, group, onSaved, onCancel }: 
   const save = () => {
     setError('')
     const winner = eligible.find((ticket: any) => ticket.id === form.winner)
-    setConfirmSummary(`Winner: ${winner ? `#${winner.ticket_no} ${winner.customers?.name}` : 'No winner (company chit)'}\n` +
+    setConfirmSummary(`Winner: ${winner ? `#${winner.ticket_no} ${winner.customers?.name}` : 'No winner (sealing period)'}\n` +
       `Bid/discount: ${rupees(discount)}\nDividend per ticket: ${rupees(dividend)}\n` +
       `Foreman commission: ${rupees(commission)}\nPrize amount: ${prize == null ? '—' : rupees(prize)}`)
   }

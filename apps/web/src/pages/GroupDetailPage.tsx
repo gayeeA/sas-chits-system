@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { CHIT_RULES, currentMonth, dateInMonth, formatDate, groupEndMonth, monthName, reminderText, rupees, todayISO, phoneDigits, whatsappLink } from '../chit'
+import { CHIT_RULES, currentMonth, dateInMonth, formatDate, groupEndMonth, groupMonthIndex, monthName, reminderText, rupees, todayISO, phoneDigits, whatsappLink } from '../chit'
 import { errorText, fetchAll, must, useAsync, useAuth } from '../lib/data'
 import { Badge, ConfirmModal, ContactButtons, Empty, Loading, Modal, Money, PageHeader, Tabs } from '../components/ui'
 import { ErrorMessage, Field, SelectField } from '../components/DataControls'
@@ -13,6 +13,10 @@ export default function GroupDetailPage() {
   const navigate = useNavigate()
   const auth = useAuth()
   const [tab, setTab] = useState<'tickets' | 'ledger' | 'auctions'>('tickets')
+  const [ticketSearch, setTicketSearch] = useState('')
+  const [ticketStatusFilter, setTicketStatusFilter] = useState('ALL')
+  const [ticketDueStatus, setTicketDueStatus] = useState('ALL')
+  const [ticketMonth, setTicketMonth] = useState('')
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
   const [selectedReminderIds, setSelectedReminderIds] = useState<string[]>([])
@@ -44,10 +48,27 @@ export default function GroupDetailPage() {
   const { group: g, tickets, ledger, auctions, payouts } = data
   const rules = { ...CHIT_RULES.defaultGroupConfig, ...(g.rule_config ?? {}) }
   const activeTickets = tickets.filter(t => t.membership_status === 'ACTIVE')
-  const reminderTickets = activeTickets.filter(t => phoneDigits(t.phone))
-  const selectedReminderTickets = reminderTickets.filter(t => selectedReminderIds.includes(t.membership_id))
-  const selectedTickets = tickets.filter(t => selectedTicketIds.includes(t.membership_id))
   const months = [...new Set(ledger.map(l => l.month_label))].sort()
+  const ticketQuery = ticketSearch.trim().toLowerCase()
+  const visibleTickets = tickets.filter(ticket => {
+    const matchesSearch = !ticketQuery ||
+      `${ticket.name ?? ''} ${ticket.member_code ?? ''} ${ticket.phone ?? ''} ${ticket.ticket_no ?? ''} #${ticket.ticket_no ?? ''}`
+        .toLowerCase().includes(ticketQuery)
+    const matchesStatus = ticketStatusFilter === 'ALL' || ticket.membership_status === ticketStatusFilter
+    const ticketLedger = ledger.filter(row => row.membership_id === ticket.membership_id &&
+      (!ticketMonth || row.month_label === ticketMonth))
+    const matchesDueStatus = ticketDueStatus === 'ALL' || ticketLedger.some(row => {
+      if (ticketDueStatus === 'DUE') return Number(row.balance) > 0
+      if (ticketDueStatus === 'OVERDUE') return row.status === 'OVERDUE'
+      if (ticketDueStatus === 'PARTIAL') return row.status === 'PARTIAL'
+      if (ticketDueStatus === 'PENDING') return row.status === 'PENDING'
+      return row.status === 'PAID'
+    })
+    return matchesSearch && matchesStatus && matchesDueStatus
+  })
+  const reminderTickets = visibleTickets.filter(t => t.membership_status === 'ACTIVE' && phoneDigits(t.phone))
+  const selectedReminderTickets = reminderTickets.filter(t => selectedReminderIds.includes(t.membership_id))
+  const selectedTickets = visibleTickets.filter(t => selectedTicketIds.includes(t.membership_id))
   const outstanding = tickets.reduce((sum, t) => sum + Number(t.total_outstanding), 0)
   const liftedIn = (membershipId: string) => auctions.find(a => a.winner_membership === membershipId)?.month_label
   const dueDate = dateInMonth(currentMonth(), g.due_day)
@@ -172,7 +193,7 @@ export default function GroupDetailPage() {
         <span className="stat-hint">Auction day {g.auction_day ?? '—'} · Due day {g.due_day}</span></div>
     </div>
     <section className="card rules-summary">
-      <span>Commission <b>{g.commission_pct ?? 0}%</b> from <b>{rules.commission_from === 'payout' ? "winner's payout" : 'bid discount'}</b></span>
+      <span>Commission <b>{g.commission_pct ?? 0}%</b> from <b>bid discount</b></span>
       <span>Prized member pays <b>{rules.prized_member_instalment === 'full_gross' ? 'full instalment in lift month' : rules.prized_member_instalment === 'net' ? 'net instalment' : <i className="warn-text">not set</i>}</b></span>
       <span>Penalty <b>{rules.penalty_mode === 'none' ? 'none' : rules.penalty_mode === 'per_day' ? `${rupees(rules.penalty_value)}/day` : `${rules.penalty_value}%`}</b>{rules.grace_days ? ` after ${rules.grace_days} grace days` : ''}</span>
       <span>Dividend lost when late: <b>{rules.forfeit_dividend_after_due ? 'Yes' : 'No'}</b></span>
@@ -192,16 +213,41 @@ export default function GroupDetailPage() {
         </button>}
         {auth.isOwner && <button className="pri" onClick={() => setAdding(true)}>+ Add member to group</button>}
       </div></div>
-      {tickets.length ? <div className="table-wrap"><table>
+      <div className="filters">
+        <input type="search" placeholder="Search member, ID, phone or ticket" value={ticketSearch}
+          onChange={e => setTicketSearch(e.target.value)} />
+        <select value={ticketStatusFilter} onChange={e => setTicketStatusFilter(e.target.value)} aria-label="Ticket status">
+          <option value="ALL">All tickets</option>
+          <option value="ACTIVE">Active</option>
+          <option value="WITHDRAWN">Withdrawn</option>
+        </select>
+        <select value={ticketMonth} onChange={e => setTicketMonth(e.target.value)} aria-label="Instalment month">
+          <option value="">Any month</option>
+          {months.map(m => <option key={m} value={m}>{monthName(m)}</option>)}
+        </select>
+        <select value={ticketDueStatus} onChange={e => setTicketDueStatus(e.target.value)} aria-label="Instalment status">
+          <option value="ALL">Any payment status</option>
+          <option value="DUE">With balance</option>
+          <option value="OVERDUE">Overdue</option>
+          <option value="PARTIAL">Partially paid</option>
+          <option value="PENDING">Unpaid, not overdue</option>
+          <option value="PAID">Paid</option>
+        </select>
+      </div>
+      {visibleTickets.length ? <div className="table-wrap"><table>
         <thead><tr>{auth.isOwner && <th><input type="checkbox" aria-label="Select all tickets for removal"
-          checked={tickets.length > 0 && tickets.every(t => selectedTicketIds.includes(t.membership_id))}
-          onChange={e => setSelectedTicketIds(e.target.checked ? tickets.map(t => t.membership_id) : [])} /></th>}
+          checked={visibleTickets.length > 0 && visibleTickets.every(t => selectedTicketIds.includes(t.membership_id))}
+          onChange={e => setSelectedTicketIds(e.target.checked
+            ? [...new Set([...selectedTicketIds, ...visibleTickets.map(t => t.membership_id)])]
+            : selectedTicketIds.filter(id => !visibleTickets.some(t => t.membership_id === id)))} /></th>}
           <th><input type="checkbox" aria-label="Select all active members with phone numbers"
           checked={reminderTickets.length > 0 && reminderTickets.every(t => selectedReminderIds.includes(t.membership_id))}
-          onChange={e => setSelectedReminderIds(e.target.checked ? reminderTickets.map(t => t.membership_id) : [])} /></th>
-          <th>Ticket</th><th>Member</th><th>Lifted</th><th className="r">Total paid</th><th className="r">Previous due</th>
+          onChange={e => setSelectedReminderIds(e.target.checked
+            ? [...new Set([...selectedReminderIds, ...reminderTickets.map(t => t.membership_id)])]
+            : selectedReminderIds.filter(id => !reminderTickets.some(t => t.membership_id === id)))} /></th>
+          <th>Ticket</th><th>Member</th><th>Lifted</th><th className="r">Cash received</th><th className="r">Subscription applied</th><th className="r">Interest due</th><th className="r">Previous due</th>
           <th className="r">Current gross / dividend / final due / balance</th><th className="r">Outstanding</th><th>Follow up</th>{auth.isOwner && <th />}</tr></thead>
-        <tbody>{tickets.map(t => <tr key={t.membership_id} className={t.membership_status === 'WITHDRAWN' ? 'struck' : ''}>
+        <tbody>{visibleTickets.map(t => <tr key={t.membership_id} className={t.membership_status === 'WITHDRAWN' ? 'struck' : ''}>
           {auth.isOwner && <td><input type="checkbox" aria-label={`Select ticket #${t.ticket_no} for removal`}
             checked={selectedTicketIds.includes(t.membership_id)}
             onChange={e => setSelectedTicketIds(ids => e.target.checked
@@ -219,9 +265,11 @@ export default function GroupDetailPage() {
             {t.membership_status === 'WITHDRAWN' && <> <Badge status="WITHDRAWN" /></>}</td>
           <td>{liftedIn(t.membership_id) ? <Badge status="LIFTED">{monthName(liftedIn(t.membership_id))}</Badge> : '—'}</td>
           <td className="r"><Money value={t.total_paid} /></td>
+          <td className="r"><Money value={t.subscription_paid} /></td>
+          <td className="r"><Money value={t.interest_due} /></td>
           <td className="r">{t.arrears ? <Money value={t.arrears} /> : '—'}</td>
           <td className="r"><div>Gross <Money value={t.current_gross} /></div><div>Dividend −<Money value={t.current_dividend} /></div>
-            <div>Final due <Money value={t.due} strong /></div><div>Balance <Money value={t.current_balance} /></div>
+            <div>Balance remaining <Money value={t.current_balance} strong /></div>
             <div>Advance credit <Money value={t.advance_credit} /></div>
             {!t.current_balance && t.due > 0 && <Badge status="PAID" />}</td>
           <td className="r">{t.total_outstanding ? <Money value={t.total_outstanding} strong /> : '—'}</td>
@@ -233,7 +281,7 @@ export default function GroupDetailPage() {
               <button className="small danger" onClick={() => removeTicket(t)}>Remove</button></>}
             <button className="small" onClick={() => setReplacingTicket(t)}>Change member / ticket</button>
             <button className="small" onClick={() => setChangingTicketNumber(t)}>Change ticket number</button></td>}
-        </tr>)}</tbody></table></div> : <Empty>No members in this group yet.</Empty>}
+        </tr>)}        </tbody></table></div> : <Empty>{tickets.length ? 'No tickets match these filters.' : 'No members in this group yet.'}</Empty>}
     </section>}
 
     {tab === 'ledger' && <section className="card">
@@ -261,7 +309,8 @@ export default function GroupDetailPage() {
           const payout = payouts.find(p => p.auction_id === a.id)
           return <tr key={a.id}>
             <td>{monthName(a.month_label)}</td><td>{formatDate(a.auction_date)}</td>
-            <td>{a.memberships ? `#${a.memberships.ticket_no} ${a.memberships.customers?.name}` : 'No winner (company chit)'}</td>
+            <td>{a.memberships ? `#${a.memberships.ticket_no} ${a.memberships.customers?.name}` :
+              Number(rules.sealing_period_months) >= (groupMonthIndex(g.start_date, a.month_label) ?? Infinity) ? 'Sealing period (no auction)' : 'No winner'}</td>
             <td className="r"><Money value={a.discount_bid} /></td><td className="r"><Money value={a.commission} /></td>
             <td className="r"><Money value={a.dividend} /></td><td className="r">{a.prize_amount != null ? <Money value={a.prize_amount} /> : '—'}</td>
             <td>{!a.winner_membership ? '—' : payout ? <>{rupees(payout.net_payout)} on {formatDate(payout.payout_date)}</>

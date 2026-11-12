@@ -22,7 +22,6 @@ export default function GroupsPage() {
     ])
     return { groups, memberships, auctions, outstanding }
   }, [])
-
   const count = (rows: any[] | undefined, id: string, extra: (r: any) => boolean = () => true) => (rows ?? []).filter(r => r.group_id === id && extra(r)).length
   const groups = (data?.groups ?? []).filter(g => (status === 'ALL' || g.status === status) &&
     `${g.series} ${g.name ?? ''}`.toLowerCase().includes(search.toLowerCase()))

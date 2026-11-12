@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { currentMonth, dateInMonth, formatDate, monthName, nextDateForDay, rupees, todayISO } from '../chit'
+import { currentMonth, dateInMonth, formatDate, groupMonthIndex, monthName, nextDateForDay, rupees, todayISO } from '../chit'
 import { useAppLayout, useReceiptView } from '../App'
 import { BACKUP_KEY } from '../lib/notifications'
 import { fetchAll, must, RECEIPT_SELECT, useAsync, useAuth } from '../lib/data'
@@ -85,7 +85,8 @@ export default function DashboardPage() {
               <td><Link to={`/groups/${g.id}`}>{g.series}</Link> <span className="muted">{g.name}</span></td>
               <td>{a?.auction_date ? formatDate(a.auction_date) : g.auction_day ? formatDate(dateInMonth(month, g.auction_day)) : '—'}</td>
               <td>{a ? <Badge status="PAID">Recorded</Badge> : <Badge status="PENDING">Not yet</Badge>}</td>
-              <td>{a ? (a.memberships ? `#${a.memberships.ticket_no} ${a.memberships.customers?.name}` : 'No winner (company chit)') : '—'}</td>
+              <td>{a ? (a.memberships ? `#${a.memberships.ticket_no} ${a.memberships.customers?.name}` :
+                Number(g.rule_config?.sealing_period_months) >= (groupMonthIndex(g.start_date, a.month_label) ?? Infinity) ? 'Sealing period' : 'No winner') : '—'}</td>
               <td className="r">{a ? <Money value={a.discount_bid} /> : '—'}</td>
               <td className="r">{a ? <Money value={a.dividend} /> : '—'}</td>
             </tr>

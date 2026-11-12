@@ -10,9 +10,8 @@ export type PrizeReportRow = {
   chitValue: number
   foremanCommission: number
   discount: number
-  gst: number
   prizeAmount: number
-  chequeAmount: number
+  payoutAmount: number
   foremanDividend: number
   remarks: string
 }
@@ -34,8 +33,9 @@ export function buildPrizeMoneyReport(auctions: any[], payouts: any[]) {
     const payout = activePayouts.get(auction.id)
     const cancelledPayout = cancelledPayouts.get(auction.id)
     const chitValue = Number(auction.chit_groups?.chit_value ?? 0)
-    const prizeAmount = Number(auction.prize_amount ?? Math.max(0, chitValue - Number(auction.discount_bid ?? 0)))
-    const gst = Math.round(chitValue * 9 / 1000)
+    const discount = Number(auction.discount_bid ?? 0)
+    const commission = Number(auction.commission ?? 0)
+    const prizeAmount = Number(auction.prize_amount ?? Math.max(0, chitValue - discount))
     const remarks = status === 'PAID'
       ? [status, payout?.notes].filter(Boolean).join(' · ')
       : cancelledPayout
@@ -50,11 +50,10 @@ export function buildPrizeMoneyReport(auctions: any[], payouts: any[]) {
       member: auction.memberships?.customers?.name ?? '',
       chequeNo: payout?.mode === 'Cheque' ? payout.ref_no ?? '' : '',
       chitValue: toRupees(chitValue),
-      foremanCommission: toRupees(Number(auction.commission ?? 0)),
-      discount: toRupees(Number(auction.discount_bid ?? 0)),
-      gst: toRupees(gst),
+      foremanCommission: toRupees(commission),
+      discount: toRupees(discount),
       prizeAmount: toRupees(prizeAmount),
-      chequeAmount: toRupees(Math.max(0, prizeAmount - gst)),
+      payoutAmount: toRupees(payout ? Number(payout.net_payout ?? 0) : prizeAmount),
       foremanDividend: toRupees(Number(auction.dividend ?? 0)),
       remarks,
     }

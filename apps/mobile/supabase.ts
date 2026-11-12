@@ -13,7 +13,7 @@ export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, proc
 
 export function supabaseErrorMessage(message: string) {
   if (/PGRST202|PGRST205|schema cache|could not find (?:the )?(?:table|view|function|relation)/i.test(message)) {
-    return 'The Supabase database is missing objects required by this app. Run migrations 002_admin_features.sql through 011_merge_duplicate_members.sql, then 012_multiple_tickets_per_member.sql, 013_auction_and_ticket_edits.sql, 014_dues_display_breakdown.sql, and 015_auction_dividends_fifo_advances.sql in order after the base schema. Do not rerun schema.sql on a database with financial records.'
+    return 'The Supabase database is missing objects required by this app. Run migrations 002_admin_features.sql through 011_merge_duplicate_members.sql, then 012_multiple_tickets_per_member.sql, 013_auction_and_ticket_edits.sql, 014_dues_display_breakdown.sql, 015_auction_dividends_fifo_advances.sql, 016_financial_calculation_guards.sql, and 017_confirmed_member_interest_ledger.sql in order after the base schema. Do not rerun schema.sql on a database with financial records.'
   }
   return message
 }

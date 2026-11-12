@@ -23,12 +23,12 @@ export default function DuesPage() {
   const matchCommon = (r: any) => (!groupId || r.group_id === groupId) &&
     (!q || `${r.name ?? r.member_name} ${r.member_code} ${r.phone ?? ''} ${r.series ?? ''} #${r.ticket_no ?? ''} ${r.ticket_no ?? ''}`.toLowerCase().includes(q))
 
-  const memberRows = (tickets.data ?? []).filter(t => matchCommon(t) && t.total_outstanding > 0 && (
+  const memberRows = (tickets.data ?? []).filter(t => matchCommon(t) && (t.total_outstanding > 0 || t.interest_due > 0) && (
     status === 'unpaid' ||
-    (status === 'OVERDUE' && t.overdue > 0) ||
+    (status === 'OVERDUE' && (t.overdue > 0 || t.interest_due > 0)) ||
     (status === 'PARTIAL' && t.paid > 0 && t.current_balance > 0) ||
     (status === 'PENDING' && t.paid === 0 && t.current_balance > 0)))
-    .sort((a, b) => b.total_outstanding - a.total_outstanding)
+    .sort((a, b) => (b.total_outstanding + b.interest_due) - (a.total_outstanding + a.interest_due))
   const instRows = (monthRows.data ?? []).filter(r => matchCommon(r) && (
     status === 'unpaid' ? r.balance > 0 : status === 'PARTIAL' ? r.is_partial : status === 'ALL' ? true : r.status === status))
 
@@ -41,13 +41,17 @@ export default function DuesPage() {
         ? <ExportButton filename="dues-member-wise.csv" rows={memberRows} columns={[
           { label: 'Member ID', value: r => r.member_code }, { label: 'Name', value: r => r.name }, { label: 'Phone', value: r => r.phone },
           { label: 'Group', value: r => r.series }, { label: 'Ticket', value: r => r.ticket_no },
-          { label: 'Total paid all time (₹)', value: r => csvRupees(r.total_paid) },
+          { label: 'Total cash received (₹)', value: r => csvRupees(r.total_paid) },
+          { label: 'Applied to subscriptions (₹)', value: r => csvRupees(r.subscription_paid) },
+          { label: 'Separate interest due (₹)', value: r => csvRupees(r.interest_due) },
           { label: 'Advance credit (₹)', value: r => csvRupees(r.advance_credit) },
           { label: 'Previous due (₹)', value: r => csvRupees(r.arrears) }, { label: 'Current balance (₹)', value: r => csvRupees(r.current_balance) },
           { label: 'Current gross instalment (₹)', value: r => csvRupees(r.current_gross) },
           { label: 'Current dividend (₹)', value: r => csvRupees(r.current_dividend) },
           { label: 'Current final due (₹)', value: r => csvRupees(r.due) },
-          { label: 'Total outstanding (₹)', value: r => csvRupees(r.total_outstanding) }, { label: 'Overdue months', value: r => r.overdue_months },
+          { label: 'Subscription outstanding (₹)', value: r => csvRupees(r.total_outstanding) },
+          { label: 'Total including interest (₹)', value: r => csvRupees(r.total_outstanding + r.interest_due) },
+          { label: 'Overdue months', value: r => r.overdue_months },
           { label: 'Oldest due date', value: r => r.oldest_due_date },
         ]} />
         : <ExportButton filename={`dues-${month}.csv`} rows={instRows} columns={[
@@ -81,32 +85,35 @@ export default function DuesPage() {
         <Stat label="Tickets with dues" value={memberRows.length} />
         <Stat label="Previous months" value={rupees(sum(memberRows, 'arrears'))} />
         <Stat label="Current month" value={rupees(sum(memberRows, 'current_balance'))} />
-        <Stat label="Total outstanding" value={rupees(sum(memberRows, 'total_outstanding'))} tone="bad" />
+        <Stat label="Subscription outstanding" value={rupees(sum(memberRows, 'total_outstanding'))} tone="bad" />
+        <Stat label="Separate interest charges" value={rupees(sum(memberRows, 'interest_due'))} />
       </div>
       <Loading show={tickets.loading && !tickets.data} />
       {tickets.data && memberRows.length > 0 && <div className="due-cards">{memberRows.map(t => <div key={t.membership_id} className="due-card">
-        <div className="due-card-top"><Link to={`/members/${t.customer_id}`}><b>{t.name}</b></Link><b className="num">{rupees(t.total_outstanding)}</b></div>
+        <div className="due-card-top"><Link to={`/members/${t.customer_id}`}><b>{t.name}</b></Link><b className="num">{rupees(t.total_outstanding + t.interest_due)}</b></div>
         <div className="muted small">{t.series} #{t.ticket_no} · {t.member_code}{t.phone ? ` · ${t.phone}` : ''}</div>
-        <div className="small">Paid all time {rupees(t.total_paid)} · Advance credit {rupees(t.advance_credit)} · Previous due {rupees(t.arrears)}</div>
-        <div className="small">This month: Gross {rupees(t.current_gross)} · Dividend {rupees(t.current_dividend)} · Final due {rupees(t.due)}
-          {' · '}Balance {rupees(t.current_balance)}
+        <div className="small">Cash received {rupees(t.total_paid)} · Applied to subscriptions {rupees(t.subscription_paid)} · Advance credit {rupees(t.advance_credit)} · Interest due {rupees(t.interest_due)} · Previous due {rupees(t.arrears)}</div>
+        <div className="small">This month: Gross {rupees(t.current_gross)} · Dividend {rupees(t.current_dividend)}
+          {' · '}Balance remaining {rupees(t.current_balance)}
           {t.overdue > 0 && <> · <Badge status="OVERDUE">{t.overdue_months} month(s) overdue</Badge></>}</div>
         <div className="bar"><ContactButtons phone={t.phone} message={reminderText({ name: t.name, amount: t.total_outstanding, series: t.series })} />
           <Link className="btn small pri" to={`/collect?membership=${t.membership_id}`}>Collect</Link></div>
       </div>)}</div>}
       {tickets.data && (memberRows.length ? <section className="card due-table"><div className="table-wrap"><table>
-        <thead><tr><th>Member</th><th>Group / ticket</th><th className="r">Paid all time</th><th className="r">Previous due</th>
-          <th className="r">Current gross / dividend / final due / balance</th><th className="r">Total outstanding</th>
+        <thead><tr><th>Member</th><th>Group / ticket</th><th className="r">Cash received</th><th className="r">Subscription applied</th><th className="r">Interest due</th><th className="r">Previous due</th>
+          <th className="r">Current gross / dividend / balance remaining</th>          <th className="r">Total incl. interest</th>
           <th>Overdue since</th><th>Follow up</th><th /></tr></thead>
         <tbody>{memberRows.map(t => <tr key={t.membership_id}>
           <td><Link to={`/members/${t.customer_id}`}><b>{t.name}</b></Link><div className="muted small">{t.member_code}{t.phone ? ` · ${t.phone}` : ''}</div></td>
           <td>{t.series} #{t.ticket_no}</td>
           <td className="r"><Money value={t.total_paid} /></td>
+          <td className="r"><Money value={t.subscription_paid} /></td>
+          <td className="r"><Money value={t.interest_due} /></td>
           <td className="r">{t.arrears ? <Money value={t.arrears} /> : '—'}</td>
           <td className="r"><div>Gross <Money value={t.current_gross} /></div><div>Dividend −<Money value={t.current_dividend} /></div>
-            <div>Final due <Money value={t.due} strong /></div><div>Balance <Money value={t.current_balance} /></div>
+            <div>Balance remaining <Money value={t.current_balance} strong /></div>
             {t.paid > 0 && t.current_balance > 0 && <div><Badge status="PARTIAL" /></div>}</td>
-          <td className="r"><Money value={t.total_outstanding} strong /></td>
+          <td className="r"><Money value={t.total_outstanding + t.interest_due} strong /></td>
           <td>{t.overdue > 0 ? <><Badge status="OVERDUE">{t.overdue_months} month(s)</Badge><div className="muted small">{formatDate(t.oldest_due_date)}</div></> : <Badge status="PENDING" />}</td>
           <td><ContactButtons phone={t.phone} message={reminderText({ name: t.name, amount: t.total_outstanding, series: t.series })} /></td>
           <td><Link className="btn small pri" to={`/collect?membership=${t.membership_id}`}>Collect</Link></td>

@@ -18,7 +18,7 @@ This is an office tool for the chit-fund owner and staff only. Members (customer
 | `/groups`, `/groups/:id` | Chit Groups | Create/edit groups and their rules, tickets, month-by-month ledger, auction history; owners can bulk-remove tickets without linked history and prepare one combined WhatsApp reminder listing selected members |
 | `/members`, `/members/:id` | Members | Add/edit/deactivate members (ID, phone, address, PAN, ID reference, nominee), **bulk import from Excel/CSV** (template and row-by-row check), merge duplicate member records while preserving their group tickets/history, bulk-delete members without group-ticket history, assign to groups, instalment/payment/lift history |
 | `/auctions` | Auctions / Lifts | Record bids, winner, discount, commission and dividend with the calculation shown step by step |
-| `/payouts` | Payouts | Winners waiting for payment, payout with deductions, printable voucher, history, and a paid/unpaid prize-money report with 0.9% GST |
+| `/payouts` | Payouts | Winners waiting for payment, payout with verified deductions, printable voucher, history, and paid/unpaid prize-money reports |
 | `/receipts` | Receipts | Receipt register with filters; owner cancels with a reason (never deletes) |
 | `/reports` | Reports (manager) | Month/week/day summary, collection (all or Cash/UPI/Bank/Cheque), group-wise, member payments, pending dues, defaulters, auctions, payouts, group summary, income vs expenses. Quick periods (this week, last month, financial year…). Excel, Word and print/PDF, plus a one-click “Everything” Excel workbook |
 | `/expenses` | Expenses (manager) | Office expenses and other income, kept separate from collections |
@@ -49,13 +49,13 @@ Permissions are enforced in the database (row-level security), not only hidden i
 3. **Required:** In a new SQL Editor query, paste all of `supabase/migrations/002_admin_features.sql` and click **Run**. The website and mobile app use objects added by this migration, including `member_outstanding`, `installment_status`, `dashboard_summary`, payouts, expenses, and audit logs. If the base schema was installed earlier, run this migration now. If financial records already exist, make a database backup first.
 4. Run `supabase/migrations/003_legacy_receipts.sql` after migration 002. It adds protected paper-receipt source details and the historical-payment RPC used by the website and phone.
 5. Run `supabase/migrations/004_member_followups.sql` after migration 003. It adds the shared call/visit/reminder log used by the phone and website.
-6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, `007_receipt_scans.sql`, `008_legacy_receipt_adjustments.sql`, `009_owner_member_group_management.sql`, `010_bulk_member_delete.sql`, `011_merge_duplicate_members.sql`, `012_multiple_tickets_per_member.sql`, `013_auction_and_ticket_edits.sql`, `014_dues_display_breakdown.sql`, and `015_auction_dividends_fifo_advances.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, private receipt photos, BP/agent commission adjustment fields for paper receipts, owner-only member/group deletion and ticket reassignment safeguards, atomic bulk member deletion plus group ticket-number limits, safe merging of duplicate member records, support for multiple tickets per member in a group, safe auction editing/deletion and ticket-number changes, per-ticket dues breakdowns, agreement-configured dividend validation, FIFO allocation to due instalments, and explicit advance-credit recording.
+6. Run migrations `005_field_ops.sql`, `006_offline_payments.sql`, `007_receipt_scans.sql`, `008_legacy_receipt_adjustments.sql`, `009_owner_member_group_management.sql`, `010_bulk_member_delete.sql`, `011_merge_duplicate_members.sql`, `012_multiple_tickets_per_member.sql`, `013_auction_and_ticket_edits.sql`, `014_dues_display_breakdown.sql`, `015_auction_dividends_fifo_advances.sql`, `016_financial_calculation_guards.sql`, `017_confirmed_member_interest_ledger.sql`, `018_interest_owner_notice_controls.sql`, and `019_confirmed_duration_sealing_rules.sql` in order. They add collector assignments and cheque clearance, duplicate-safe mobile payment retries, private receipt photos, BP/agent commission adjustment fields for paper receipts, owner-only member/group deletion and ticket reassignment safeguards, atomic bulk member deletion plus group ticket-number limits, safe merging of duplicate member records, support for multiple tickets per member, safe auction editing/deletion and ticket-number changes, per-ticket dues breakdowns, agreement-configured dividend validation, FIFO allocation to due instalments, explicit advance-credit recording, payout-term validation, separate reporting of cash received versus subscription allocations, an auditable interest ledger with owner approval and notice controls, and the confirmed duration-based ticket count and sealing-period checks.
 7. In Authentication settings, disable public sign-up. Create the owner's account first; the database's signup trigger makes the first profile the owner.
 8. Keep the URL and anon key for both apps. Never put a service-role key in either client.
 
 The schema is a fresh-install script, not a migration. Do not run it again on a project that already contains business or financial records. Back up an existing database in Supabase before applying migrations.
 
-Migration 015 does not recalculate or rewrite historic auctions, instalments, receipts, or allocations. It validates new auction dividend entries using each group's configured commission rate, commission treatment, and registered total ticket count; payment surpluses are recorded as advance credits rather than prepaid future instalments. Apply the migration before using these changes. Confirm group settings against the registered agreement first.
+Migrations 015–019 do not recalculate historic auction, instalment, receipt, payout, or allocation amounts. Migration 015 validates new auction dividends and keeps payment surpluses as explicit advances. Migration 016 validates new payouts, corrects FIFO due-date allocation, and exposes subscription allocations separately from cash receipts. Migrations 017–018 add an auditable interest ledger; only the owner may apply or reverse interest, and notice details are required. Interest remains a separately recorded charge and is not yet automatically assessed or included in subscription receipts. Migration 019 aligns each group's configured ticket count to its duration, fixes commission treatment to the discount pool, and enforces the configured sealing period for new auction records. It refuses to run if an existing ticket number exceeds its group's duration. Apply migrations only after a database backup and review any reported precondition errors.
 
    The migration also fixes a bug in `schema.sql`: cancelling a receipt always failed with "Receipts are immutable", because the generated `total` column is not available inside the guard trigger.
 
@@ -156,7 +156,7 @@ Run `supabase/schema.sql` in the Supabase Dashboard's **SQL Editor** (or manage 
 ## Accounting and safety notes
 
 - Money stored in the database is integer paise.
-- Dividend per member is entered manually for each auction until the company agreement and Excel calculation are supplied and validated.
+- New auction dividends are validated from the configured chit amount, commission rate, discount, and ticket count. The historical ₹10 lakh schedule's 40-ticket arithmetic is covered by tests; each group's configured terms remain the source of its calculation.
 - Each group configures its own prized-member instalment rule, grace period, penalty, and dividend-forfeiture rule. New installments snapshot the rules; changing group settings does not rewrite old installments.
 - A duplicate auction for a group/month and a repeat winner in a group are rejected by the database.
 - `record_payment` creates the immutable receipt and its installment allocations in a single database transaction. `payment_quote` returns the configured dues and penalty preview.
@@ -169,15 +169,19 @@ Run `supabase/schema.sql` in the Supabase Dashboard's **SQL Editor** (or manage 
 - **Phone app:** Expo Go (free) for daily use, or a free EAS preview APK build.
 - **Reminders:** Chat and Call buttons use normal `wa.me` / `tel:` links from the owner's phone — no paid SMS/chat API.
 
-## Rules that must be confirmed per group
+## Confirmed group settings and remaining limitations
 
-Nothing about the chit agreement is assumed; each group stores its own rules and the auction screen shows every figure before saving:
+The confirmed company rules are applied to new activity, and the auction screen shows the calculation before saving:
 
-- Commission %, and whether it comes from the **bid discount** (reduces dividend) or the **winner's payout**.
-- Dividend per member is **suggested** as (discount − commission) ÷ members, rounded down to the rupee, and can be overwritten with the agreed figure.
+- Commission is taken from the **bid discount** (reduces the dividend pool), not deducted again from the winner's payout.
+- Total tickets equal the group duration in months. Migration 019 aligns configured counts and prevents a mismatch; it does not add or delete member tickets.
+- The owner chooses each group's sealing-period length. Instalments remain within the total group duration; auctions begin after that period, and a draw winner can be recorded when there is no bidder.
+- Dividend per ticket is (discount − commission) ÷ tickets, rounded down to the rupee, as demonstrated by the historical schedule.
 - Prized member instalment: "net" or "full instalment in the month they lift". The full-instalment rule currently applies only to the month of the lift (as in the original design); if the agreement says prized members pay the full instalment for all later months, that needs a change.
 - Penalty, grace days and dividend forfeiture.
 - Auction terms can be corrected while no payout or collection is linked; otherwise only auction date and notes remain editable. Auction deletion is blocked when financial history exists. Receipts and payouts are cancelled with a reason and re-entered. Every change is in Settings → Change history.
+- Interest remains an owner-approved, separately recorded charge. Automatic calculation after grace and adding it to subscription receipts are not implemented until a complete collection rule is confirmed.
+- GST remains excluded from payout calculations until its taxable base, accounting treatment, and accountant-approved basis are confirmed; no tax deduction is inferred from chit value alone.
 
 ## Current verification and limitations
 

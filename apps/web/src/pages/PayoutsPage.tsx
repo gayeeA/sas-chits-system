@@ -20,9 +20,8 @@ const PRIZE_REPORT_COLUMNS = [
   { label: 'CHIT VALUE (₹)', value: (row: PrizeReportRow) => row.chitValue },
   { label: 'F.MAN COMN (₹)', value: (row: PrizeReportRow) => row.foremanCommission },
   { label: 'DISCOUNT (₹)', value: (row: PrizeReportRow) => row.discount },
-  { label: 'SERVICE TAX / GST (₹)', value: (row: PrizeReportRow) => row.gst },
   { label: 'PRIZE AMOUNT (₹)', value: (row: PrizeReportRow) => row.prizeAmount },
-  { label: 'CHEQUE AMOUNT (₹)', value: (row: PrizeReportRow) => row.chequeAmount },
+  { label: 'PAYOUT AMOUNT (₹)', value: (row: PrizeReportRow) => row.payoutAmount },
   { label: 'FOREMAN DIV (₹)', value: (row: PrizeReportRow) => row.foremanDividend },
   { label: 'REMARKS', value: (row: PrizeReportRow) => row.remarks },
 ]
@@ -75,7 +74,7 @@ export default function PayoutsPage() {
 
   return <>
     <PageHeader title={view === 'payouts' ? 'Payouts' : 'Prize money report'}
-      subtitle={view === 'payouts' ? 'Money paid to lift winners' : `Paid and unpaid prizes · GST at 0.9% of chit value · ${formatDate(todayISO())}`}
+      subtitle={view === 'payouts' ? 'Money paid to lift winners' : `Paid payout amounts and estimated unpaid prizes · ${formatDate(todayISO())}`}
       actions={view === 'payouts' ? <ExportButton filename="payouts.csv" rows={history} columns={[
         { label: 'Voucher', value: p => p.voucher_no }, { label: 'Date', value: p => p.payout_date }, { label: 'Group', value: p => p.chit_groups?.series },
         { label: 'Month', value: p => p.auctions?.month_label }, { label: 'Member', value: p => p.memberships?.customers?.name },
@@ -171,37 +170,36 @@ function PrizeReportTableRow({ row }: { row: PrizeReportRow }) {
     <td className="r">{row.chitValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
     <td className="r">{row.foremanCommission.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
     <td className="r">{row.discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-    <td className="r">{row.gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
     <td className="r">{row.prizeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-    <td className="r">{row.chequeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{row.payoutAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
     <td className="r">{row.foremanDividend.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td><td>{row.remarks}</td>
   </tr>
 }
 
 function PrizeReportTotals({ rows }: { rows: PrizeReportRow[] }) {
-  const total = (key: keyof Pick<PrizeReportRow, 'chitValue' | 'foremanCommission' | 'discount' | 'gst' | 'prizeAmount' | 'chequeAmount' | 'foremanDividend'>) =>
+  const total = (key: keyof Pick<PrizeReportRow, 'chitValue' | 'foremanCommission' | 'discount' | 'prizeAmount' | 'payoutAmount' | 'foremanDividend'>) =>
     rows.reduce((sum, row) => sum + row[key], 0)
   return <tfoot><tr>
     <td colSpan={6}>Total ({rows.length})</td>
     <td className="r">{total('chitValue').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
     <td className="r">{total('foremanCommission').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
     <td className="r">{total('discount').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-    <td className="r">{total('gst').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
     <td className="r">{total('prizeAmount').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-    <td className="r">{total('chequeAmount').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td className="r">{total('payoutAmount').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
     <td className="r">{total('foremanDividend').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td><td />
   </tr></tfoot>
 }
 
 function PayoutForm({ auction, onSaved }: { auction: any; onSaved: (payout: any) => void }) {
-  const fromPayout = auction.chit_groups?.rule_config?.commission_from === 'payout'
   const [form, setForm] = useState<any>({
-    gross: toRupees(auction.chit_groups?.chit_value), commission: toRupees(fromPayout ? auction.commission : 0), other: '', mode: 'Bank Transfer', date: todayISO(),
+    other: '', mode: 'Bank Transfer', date: todayISO(),
   })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const dues = useAsync(async () => (await supabase.from('member_outstanding').select('total_outstanding').eq('membership_id', auction.winner_membership).maybeSingle().then(must)) as any, [auction.id])
-  const gross = toPaise(form.gross), commission = toPaise(form.commission), other = toPaise(form.other)
+  const gross = Number(auction.chit_groups?.chit_value ?? 0)
+  const commission = 0
+  const other = toPaise(form.other)
   const net = gross - auction.discount_bid - commission - other
 
   const save = async () => {
@@ -227,10 +225,10 @@ function PayoutForm({ auction, onSaved }: { auction: any; onSaved: (payout: any)
       <button className="small" onClick={() => setForm({ ...form, other: toRupees(dues.data.total_outstanding), deductionNotes: 'Pending dues adjusted' })}>Deduct from payout</button>
       <br /><small>If you deduct dues here, also record that amount on Record Payment so the member's account shows it as paid.</small></p>}
     <div className="grid">
-      <Field label="Gross chit amount (₹)" name="gross" values={form} setValues={setForm} type="number" />
+      <label><span>Gross chit amount (₹)</span><input value={toRupees(gross)} readOnly /></label>
       <label>Bid / discount (₹)<input value={toRupees(auction.discount_bid)} disabled /></label>
-      <Field label="Commission deducted (₹)" name="commission" values={form} setValues={setForm} type="number"
-        hint={fromPayout ? 'Group rule: commission comes from the payout' : 'Group rule: commission already taken from the discount'} />
+      <label><span>Commission deducted (₹)</span><input value={toRupees(commission)} readOnly />
+        <small>Commission is taken from the bid discount pool; it is not deducted from the prize payout again.</small></label>
       <Field label="Other deductions (₹)" name="other" values={form} setValues={setForm} type="number" />
       <Field label="Deduction details" name="deductionNotes" values={form} setValues={setForm} placeholder="e.g. documentation, pending dues" />
     </div>

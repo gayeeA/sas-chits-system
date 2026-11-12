@@ -15,15 +15,45 @@ const auction = (overrides: Record<string, unknown> = {}) => ({
 })
 
 describe('prize money report', () => {
-  it('calculates GST at 0.9% of chit value and subtracts it from the prize amount', () => {
+  it('does not apply an undocumented tax deduction to the expected prize amount', () => {
     const report = buildPrizeMoneyReport([
       auction(),
       auction({ id: 'auction-2', chit_groups: { series: 'B1', chit_value: 50_000_000 }, prize_amount: 50_000_000 }),
     ], [])
 
-    expect(report.unpaid.map(row => row.gst)).toEqual([900, 4500])
-    expect(report.unpaid[0].chequeAmount).toBe(99_100)
-    expect(report.unpaid[1].chequeAmount).toBe(495_500)
+    expect(report.unpaid.map(row => row.payoutAmount)).toEqual([100_000, 500_000])
+  })
+
+  it('uses the recorded payout amount when a prize has been paid', () => {
+    const report = buildPrizeMoneyReport([auction()], [{
+      auction_id: 'auction-1', status: 'ACTIVE', mode: 'Bank Transfer', net_payout: 6_499_000,
+    }])
+
+    expect(report.paid[0].payoutAmount).toBe(64_990)
+  })
+
+  it('never deducts the commission from the prize payout when deriving a missing amount', () => {
+    const report = buildPrizeMoneyReport([auction({
+      prize_amount: null,
+      commission: 500_000,
+      discount_bid: 3_500_000,
+      chit_groups: { series: 'A1', chit_value: 10_000_000, rule_config: { commission_from: 'payout' } },
+    })], [])
+
+    expect(report.unpaid[0].prizeAmount).toBe(65_000)
+    expect(report.unpaid[0].payoutAmount).toBe(65_000)
+  })
+
+  it('does not subtract discount-sourced commission from the prize a second time', () => {
+    const report = buildPrizeMoneyReport([auction({
+      prize_amount: null,
+      commission: 500_000,
+      discount_bid: 3_500_000,
+      chit_groups: { series: 'A1', chit_value: 10_000_000, rule_config: { commission_from: 'discount' } },
+    })], [])
+
+    expect(report.unpaid[0].prizeAmount).toBe(65_000)
+    expect(report.unpaid[0].payoutAmount).toBe(65_000)
   })
 
   it('lists an active payout as paid and a cancelled payout as unpaid', () => {

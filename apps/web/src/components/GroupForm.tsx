@@ -15,15 +15,16 @@ export default function GroupForm({ group, locked, onSaved, onCancel }: {
 }) {
   const config = { ...CHIT_RULES.defaultGroupConfig, ...(group?.rule_config ?? {}) }
   const [form, setForm] = useState<any>(group ? {
-    name: group.name ?? '', series: group.series, chitValue: toRupees(group.chit_value), memberCount: group.member_count ?? '',
+    name: group.name ?? '', series: group.series, chitValue: toRupees(group.chit_value), memberCount: group.months ?? '',
     months: group.months, gross: toRupees(group.gross_installment), startDate: group.start_date ?? '', auctionDay: group.auction_day ?? '',
     dueDay: group.due_day ?? '', commissionPct: group.commission_pct ?? '', status: group.status ?? 'ACTIVE', notes: group.notes ?? '',
-    commissionFrom: config.commission_from ?? 'discount', prizedRule: config.prized_member_instalment === 'unset' ? '' : config.prized_member_instalment,
+    sealingPeriodMonths: Number(config.sealing_period_months) || 0,
+    prizedRule: config.prized_member_instalment === 'unset' ? '' : config.prized_member_instalment,
     graceDays: config.grace_days, penaltyMode: config.penalty_mode,
     penaltyValue: config.penalty_mode === 'per_day' ? toRupees(config.penalty_value) : config.penalty_value,
     forfeiture: config.forfeit_dividend_after_due ? 'yes' : 'no',
   } : {
-    status: 'ACTIVE', dueDay: 10, auctionDay: 5, commissionPct: 5, commissionFrom: 'discount', graceDays: 0, penaltyMode: 'none',
+    status: 'ACTIVE', dueDay: 10, auctionDay: 5, commissionPct: 5, sealingPeriodMonths: 0, graceDays: 0, penaltyMode: 'none',
     penaltyValue: 0, forfeiture: 'no', prizedRule: '', startDate: new Date().toISOString().slice(0, 8) + '01',
   })
   const [error, setError] = useState('')
@@ -35,21 +36,23 @@ export default function GroupForm({ group, locked, onSaved, onCancel }: {
       const v = Number(next.chitValue), m = Number(next.months)
       if (v > 0 && m > 0) next = { ...next, gross: Math.round((v / m) * 100) / 100 }
     }
+    if (next.months !== form.months) next = { ...next, memberCount: Number(next.months) || '' }
     setForm(next)
   }
 
   const valid = form.series?.trim() && Number(form.chitValue) > 0 && Number(form.months) > 0 && Number(form.gross) > 0 &&
-    Number(form.memberCount) > 0 && form.commissionPct !== '' && form.commissionPct != null &&
+    Number(form.months) > 0 && form.commissionPct !== '' && form.commissionPct != null &&
+    Number(form.sealingPeriodMonths) >= 0 && Number(form.sealingPeriodMonths) <= Number(form.months) &&
     Number(form.dueDay) >= 1 && Number(form.dueDay) <= 31 && form.prizedRule
   const end = groupEndMonth(form.startDate, Number(form.months) || 0)
-  const totalCollect = toPaise(form.gross) * (Number(form.memberCount) || 0)
+  const totalCollect = toPaise(form.gross) * (Number(form.months) || 0)
 
   const save = async () => {
     setBusy(true)
     const row: any = {
       name: form.name?.trim() || null,
       series: form.series.trim(),
-      member_count: Number(form.memberCount),
+      member_count: Number(form.months),
       start_date: form.startDate || null,
       auction_day: form.auctionDay ? Number(form.auctionDay) : null,
       due_day: Number(form.dueDay),
@@ -62,7 +65,8 @@ export default function GroupForm({ group, locked, onSaved, onCancel }: {
         penalty_value: form.penaltyMode === 'per_day' ? toPaise(form.penaltyValue) : Number(form.penaltyValue) || 0,
         forfeit_dividend_after_due: form.forfeiture === 'yes',
         prized_member_instalment: form.prizedRule,
-        commission_from: form.commissionFrom,
+        commission_from: 'discount',
+        sealing_period_months: Number(form.sealingPeriodMonths) || 0,
       },
     }
     if (!locked) Object.assign(row, { chit_value: toPaise(form.chitValue), months: Number(form.months), gross_installment: toPaise(form.gross) })
@@ -86,24 +90,27 @@ export default function GroupForm({ group, locked, onSaved, onCancel }: {
     <div className="grid">
       <Field label="Total chit amount (₹)" name="chitValue" values={form} setValues={set} type="number" required disabled={locked} />
       <Field label="Duration (months)" name="months" values={form} setValues={set} type="number" required disabled={locked} />
-      <Field label="Registered total tickets" name="memberCount" values={form} setValues={set} type="number" required disabled={locked}
-        hint="Verify against the registered agreement. The dividend pool is divided by total tickets, not unique members." />
+      <label><span>Total tickets</span><input value={Number(form.months) || ''} readOnly />
+        <small>Per the confirmed company rule, total tickets equal the group duration in months.</small></label>
       <Field label="Monthly contribution (₹)" name="gross" values={form} setValues={set} type="number" required disabled={locked}
         hint="Full instalment before dividend" />
     </div>
-    <p className="muted small">Each month: {Number(form.memberCount) || 0} tickets × {rupees(toPaise(form.gross))} = <b>{rupees(totalCollect)}</b>
+    <p className="muted small">Each month: {Number(form.months) || 0} tickets × {rupees(toPaise(form.gross))} = <b>{rupees(totalCollect)}</b>
       {Number(form.chitValue) > 0 && totalCollect !== toPaise(form.chitValue) && <span className="warn-text"> (chit amount is {rupees(toPaise(form.chitValue))} — check the figures)</span>}</p>
     <h3>Dates</h3>
     <div className="grid">
-      <Field label="Start date" name="startDate" values={form} setValues={set} type="date" hint={end ? `Last month: ${monthName(end)}` : undefined} />
+      <Field label="Start date" name="startDate" values={form} setValues={set} type="date" disabled={locked}
+        hint={end ? `Last month: ${monthName(end)}` : undefined} />
       <Field label="Auction day of month" name="auctionDay" values={form} setValues={set} type="number" placeholder="e.g. 5" />
       <Field label="Payment due day of month" name="dueDay" values={form} setValues={set} type="number" required />
+      <Field label="Sealing period (months)" name="sealingPeriodMonths" values={form} setValues={set} type="number"
+        min={0} max={Number(form.months) || undefined} disabled={locked}
+        hint="Instalments remain within the total duration; auctions start after this period." />
     </div>
     <h3>Rules for this group</h3>
     <div className="grid">
       <Field label="Foreman commission (%)" name="commissionPct" values={form} setValues={set} type="number" required />
-      <SelectField label="Commission is taken from" name="commissionFrom" values={form} setValues={set} placeholder={null}
-        options={[['discount', 'Bid discount (reduces dividend)'], ['payout', "Winner's payout"]]} />
+      <label><span>Commission treatment</span><input value="Taken from the bid discount pool" readOnly /></label>
       <SelectField label="Prized member pays" name="prizedRule" values={form} setValues={set} required
         options={[['net', 'Net instalment (after dividend)'], ['full_gross', 'Full instalment (no dividend) in the month they lift']]} />
       <SelectField label="Late payment penalty" name="penaltyMode" values={form} setValues={set} placeholder={null} options={PENALTY_OPTIONS} />

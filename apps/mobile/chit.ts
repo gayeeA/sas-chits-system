@@ -33,6 +33,18 @@ export const toRupees = (p: number | null | undefined) => (p || 0) / 100
 export const rupees = (p: number) => '₹' + (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })
 export const netInstalment = (gross: number, dividend: number) => Math.max(0, gross - dividend)
 
+export const calculateSimpleInterest360 = (principal: number, annualRate: number, days: number) => {
+  if (!Number.isSafeInteger(principal) || principal < 0) throw new RangeError('Interest principal must be non-negative paise')
+  if (!Number.isFinite(annualRate) || annualRate < 0 || annualRate > 100) throw new RangeError('Annual interest rate must be between 0 and 100 percent')
+  if (!Number.isSafeInteger(days) || days < 0) throw new RangeError('Interest days must be a non-negative integer')
+  const rateTenThousandths = BigInt(Math.round(annualRate * 10000))
+  const numerator = BigInt(principal) * rateTenThousandths * BigInt(days)
+  const denominator = 360_000_000n
+  const amount = (numerator + denominator / 2n) / denominator
+  if (amount > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('Calculated interest exceeds the supported amount')
+  return Number(amount)
+}
+
 export const calculatePenalty = ({ amount, daysLate, config }: { amount: number; daysLate: number; config: GroupRuleConfig }) => {
   const safeAmount = Math.max(0, Number(amount) || 0)
   const safeGraceDays = Math.max(0, Number(config.grace_days) || 0)
@@ -112,18 +124,23 @@ export function nextDateForDay(day: number, from = todayISO()) {
 /** Last instalment month of a group that starts in `startDate`'s month and runs `months` months. */
 export const groupEndMonth = (startDate: string | null | undefined, months: number) =>
   startDate ? addMonths(startDate.slice(0, 7), Math.max(months, 1) - 1) : null
+export const groupMonthIndex = (startDate: string | null | undefined, monthLabel: string | null | undefined) => {
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !isMonthLabel(monthLabel)) return null
+  const [startYear, startMonth] = startDate.slice(0, 7).split('-').map(Number)
+  const [year, month] = monthLabel!.split('-').map(Number)
+  return (year - startYear) * 12 + month - startMonth + 1
+}
 
 // ---------- Auction / lift calculation ----------
 /**
- * Transparent auction arithmetic. Every rule is an input; nothing about the agreement is assumed.
+ * Auction arithmetic for the company's confirmed discount-funded commission rule.
  * - commission = chit value × commission %
- * - commission_from 'discount': dividend pool = discount − commission; winner prize = chit value − discount
- * - commission_from 'payout':   dividend pool = discount;              winner prize = chit value − discount − commission
+ * - dividend pool = discount − commission
+ * - winner prize = chit value − discount
  * - suggested dividend per ticket = pool ÷ ticket count, rounded down to `roundTo` paise (default ₹1)
  */
-export function auctionCalc({ chitValue, discount, commissionPct, ticketCount, commissionFrom = 'discount', roundTo = 100 }: {
-  chitValue: number; discount: number; commissionPct: number; ticketCount: number
-  commissionFrom?: 'discount' | 'payout'; roundTo?: number
+export function auctionCalc({ chitValue, discount, commissionPct, ticketCount, roundTo = 100 }: {
+  chitValue: number; discount: number; commissionPct: number; ticketCount: number; roundTo?: number
 }) {
   const safeChitValue = Math.max(0, Number(chitValue) || 0)
   const safeDiscount = Math.max(0, Number(discount) || 0)
@@ -132,14 +149,12 @@ export function auctionCalc({ chitValue, discount, commissionPct, ticketCount, c
   const safeRoundTo = Math.max(0, Number(roundTo) || 0)
 
   const commission = Math.round((safeChitValue * safeCommissionPct) / 100)
-  const fromDiscount = commissionFrom !== 'payout'
-  const dividendPool = Math.max(0, safeDiscount - (fromDiscount ? commission : 0))
+  const dividendPool = Math.max(0, safeDiscount - commission)
   const raw = safeTicketCount > 0 ? dividendPool / safeTicketCount : 0
   const dividendPerTicket = safeRoundTo > 0 ? Math.floor(raw / safeRoundTo) * safeRoundTo : Math.floor(raw)
-  const prizeAmount = Math.max(0, safeChitValue - safeDiscount - (fromDiscount ? 0 : commission))
+  const prizeAmount = Math.max(0, safeChitValue - safeDiscount)
   return {
     commission,
-    commissionDeductedFromPayout: fromDiscount ? 0 : commission,
     dividendPool,
     dividendPerTicket,
     dividendRemainder: dividendPool - dividendPerTicket * safeTicketCount,
@@ -197,6 +212,9 @@ export const memberLedgerWhatsAppText = ({
   name,
   memberCode,
   totalPaid,
+  subscriptionApplied = 0,
+  interestDue = 0,
+  interestCharges = [],
   totalOutstanding,
   tickets = [],
   business = 'Sri AndeSivaiah Chits'
@@ -204,6 +222,9 @@ export const memberLedgerWhatsAppText = ({
   name: string
   memberCode?: string
   totalPaid: number
+  subscriptionApplied?: number
+  interestDue?: number
+  interestCharges?: Array<{ period: string; annualRate: number; amount: number; status: string }>
   totalOutstanding: number
   tickets?: Array<{ series: string; ticket_no: number; total_outstanding: number }>
   business?: string
@@ -213,8 +234,17 @@ export const memberLedgerWhatsAppText = ({
     `━━━━━━━━━━━━━━━━━━━\n` +
     `Member: *${name}* (${memberCode || '—'})\n` +
     `Date: ${formatDate(todayISO())}\n\n` +
-    `• *Total Paid:* ${rupees(totalPaid)}\n` +
-    `• *Current Outstanding:* ${rupees(totalOutstanding)}\n`
+    `• *Cash Received:* ${rupees(totalPaid)}\n` +
+    `• *Applied to Subscriptions:* ${rupees(subscriptionApplied)}\n` +
+    `• *Separate Interest Due:* ${rupees(interestDue)}\n` +
+    `• *Current Subscription Outstanding:* ${rupees(totalOutstanding)}\n`
+
+  if (interestCharges.length > 0) {
+    text += `\n*Interest charge history (separate):*\n`
+    for (const charge of interestCharges) {
+      text += `  - ${charge.period} · ${charge.annualRate}% p.a. · ${rupees(charge.amount)} · ${charge.status}\n`
+    }
+  }
 
   if (tickets.length > 0) {
     text += `\n*Chit Tickets:*\n`
