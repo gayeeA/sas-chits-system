@@ -42,7 +42,7 @@ begin
     raise exception 'Interest principal must be positive';
   end if;
   if p_annual_rate is null or p_annual_rate not in (15, 18) then
-    raise exception 'Choose the agreement rate confirmed by the owner: 15% or 18% per annum';
+    raise exception 'Choose the agreement rate confirmed by the owner: 15%% or 18%% per annum';
   end if;
   if p_membership_id is null or p_installment_id is null then
     raise exception 'Choose a member and overdue instalment';
