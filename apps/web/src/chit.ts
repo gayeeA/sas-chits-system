@@ -35,9 +35,9 @@ export const netInstalment = (gross: number, dividend: number) => Math.max(0, gr
 
 // Helper to compute amount paid after dividend (used in UI)
 export const paidAfterDividend = (inst: any) => {
-  const paid = Number(inst.paid) || 0;
-  const dividend = Number(inst.dividend) || 0;
-  return Math.max(0, paid - dividend);
+  // Installment payments are allocated against the stored net amount due.
+  // The dividend is already deducted from `net`; do not deduct it from paid again.
+  return Math.min(Math.max(0, Number(inst.paid) || 0), dueAfterDividend(inst));
 };
 
 // Helper to compute due amount after dividend (used in UI)
@@ -49,10 +49,9 @@ export const dueAfterDividend = (inst: any) => {
 
 // Helper to compute remaining balance after dividend and any payments (used in UI)
 export const remainingBalance = (inst: any) => {
-  const gross = Number(inst.gross) || 0;
-  const dividend = Number(inst.dividend) || 0;
-  const paidAfterDiv = paidAfterDividend(inst);
-  return Math.max(0, gross - dividend - paidAfterDiv);
+  const due = dueAfterDividend(inst);
+  const paid = paidAfterDividend(inst);
+  return Math.max(0, due - paid);
 };
 
 

@@ -24,6 +24,7 @@ export default function GroupDetailPage() {
   const [showReminders, setShowReminders] = useState(false)
   const [replacingTicket, setReplacingTicket] = useState<any>(null)
   const [changingTicketNumber, setChangingTicketNumber] = useState<any>(null)
+  const [swappingTicket, setSwappingTicket] = useState<any>(null)
   const [editingAuction, setEditingAuction] = useState<any>(null)
   const [confirmation, setConfirmation] = useState<{
     title: string; message: string; confirmLabel: string; action: () => Promise<boolean>
@@ -245,7 +246,7 @@ export default function GroupDetailPage() {
           onChange={e => setSelectedReminderIds(e.target.checked
             ? [...new Set([...selectedReminderIds, ...reminderTickets.map(t => t.membership_id)])]
             : selectedReminderIds.filter(id => !reminderTickets.some(t => t.membership_id === id)))} /></th>
-          <th>Ticket</th><th>Member</th><th>Lifted</th><th className="r">Cash received</th><th className="r">Subscription applied</th><th className="r">Interest due</th><th className="r">Previous due</th>
+          <th>Ticket</th><th>Member</th><th>Lifted</th><th className="r">Net subscription paid</th><th className="r">Cash received</th><th className="r">Interest due</th><th className="r">Previous due</th>
           <th className="r">Current gross / dividend / final due / balance</th><th className="r">Outstanding</th><th>Follow up</th>{auth.isOwner && <th />}</tr></thead>
         <tbody>{visibleTickets.map(t => <tr key={t.membership_id} className={t.membership_status === 'WITHDRAWN' ? 'struck' : ''}>
           {auth.isOwner && <td><input type="checkbox" aria-label={`Select ticket #${t.ticket_no} for removal`}
@@ -265,7 +266,7 @@ export default function GroupDetailPage() {
             {t.membership_status === 'WITHDRAWN' && <> <Badge status="WITHDRAWN" /></>}</td>
           <td>{liftedIn(t.membership_id) ? <Badge status="LIFTED">{monthName(liftedIn(t.membership_id))}</Badge> : '—'}</td>
           <td className="r"><Money value={t.total_paid} /></td>
-          <td className="r"><Money value={t.subscription_paid} /></td>
+          <td className="r"><Money value={t.total_received} /></td>
           <td className="r"><Money value={t.interest_due} /></td>
           <td className="r">{t.arrears ? <Money value={t.arrears} /> : '—'}</td>
           <td className="r"><div>Gross <Money value={t.current_gross} /></div><div>Dividend −<Money value={t.current_dividend} /></div>
@@ -280,7 +281,8 @@ export default function GroupDetailPage() {
             : <><button className="small" onClick={() => setTicketStatus(t, 'ACTIVE')}>Re-activate</button>
               <button className="small danger" onClick={() => removeTicket(t)}>Remove</button></>}
             <button className="small" onClick={() => setReplacingTicket(t)}>Change member / ticket</button>
-            <button className="small" onClick={() => setChangingTicketNumber(t)}>Change ticket number</button></td>}
+            <button className="small" onClick={() => setChangingTicketNumber(t)}>Change ticket number</button>
+            {t.membership_status === 'ACTIVE' && <button className="small" onClick={() => setSwappingTicket(t)}>Swap ticket</button>}</td>}
         </tr>)}        </tbody></table></div> : <Empty>{tickets.length ? 'No tickets match these filters.' : 'No members in this group yet.'}</Empty>}
     </section>}
 
@@ -338,6 +340,10 @@ export default function GroupDetailPage() {
       <ChangeTicketNumber ticket={changingTicketNumber} taken={tickets.map(t => t.ticket_no)} ticketLimit={g.member_count ?? 0}
         onSaved={async () => { setChangingTicketNumber(null); await reload() }} />
     </Modal>}
+    {swappingTicket && <Modal title={`Swap ticket #${swappingTicket.ticket_no}`} onClose={() => setSwappingTicket(null)}>
+      <SwapTickets ticket={swappingTicket} otherTickets={tickets.filter(t => t.membership_id !== swappingTicket.membership_id && t.membership_status === 'ACTIVE')}
+        onSaved={async () => { setSwappingTicket(null); await reload() }} />
+    </Modal>}
     {editingAuction && <AuctionEditModal auction={editingAuction} group={g}
       onCancel={() => setEditingAuction(null)}
       onSaved={async () => { setEditingAuction(null); await reload() }} />}
@@ -368,6 +374,36 @@ export default function GroupDetailPage() {
       </div>
     </Modal>}
   </>
+}
+
+function SwapTickets({ ticket, otherTickets, onSaved }: {
+  ticket: any; otherTickets: any[]; onSaved: () => void
+}) {
+  const [otherId, setOtherId] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const swap = async () => {
+    if (!otherId) return
+    setBusy(true)
+    setError('')
+    const { error: swapError } = await supabase.rpc('swap_membership_tickets', {
+      p_first_membership_id: ticket.membership_id,
+      p_second_membership_id: otherId,
+    })
+    setBusy(false)
+    if (swapError) setError(errorText(swapError))
+    else onSaved()
+  }
+  const other = otherTickets.find(row => row.membership_id === otherId)
+  return <div className="form">
+    <p className="muted small">This exchanges the ticket numbers of two active tickets in this group. Member identities and all financial history stay with their memberships.</p>
+    <p><b>Ticket #{ticket.ticket_no} · {ticket.name}</b></p>
+    <SelectField label="Swap with" name="otherId" values={{ otherId }} setValues={values => setOtherId(values.otherId)} required
+      options={otherTickets.map(row => [row.membership_id, `#${row.ticket_no} · ${row.name}`])} />
+    {other && <p>Ticket #{ticket.ticket_no} will become #{other.ticket_no}, and ticket #{other.ticket_no} will become #{ticket.ticket_no}.</p>}
+    <div className="bar"><button className="pri" disabled={busy || !otherId} onClick={() => { void swap() }}>{busy ? 'Swapping…' : 'Swap ticket numbers'}</button>
+      <ErrorMessage>{error}</ErrorMessage></div>
+  </div>
 }
 
 function ChangeTicket({ ticket, taken, ticketLimit, onSaved }: {

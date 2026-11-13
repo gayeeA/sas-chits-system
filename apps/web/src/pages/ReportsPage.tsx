@@ -242,7 +242,7 @@ async function build(type: string, f: { from: string; to: string; month: string;
     case 'group_summary': {
       const [groups, tickets, auctions, payouts] = await Promise.all([
         fetchAll(() => byGroup(supabase.from('chit_groups').select('*').order('series'), 'id')),
-        fetchAll(() => byGroup(supabase.from('member_outstanding').select('group_id,total_paid,total_outstanding,membership_status'))),
+        fetchAll(() => byGroup(supabase.from('member_outstanding').select('group_id,total_received,total_outstanding,membership_status'))),
         fetchAll(() => byGroup(supabase.from('auctions').select('group_id,commission,discount_bid'))),
         fetchAll(() => byGroup(supabase.from('payouts').select('group_id,net_payout').eq('status', 'ACTIVE'))),
       ])
@@ -250,7 +250,7 @@ async function build(type: string, f: { from: string; to: string; month: string;
       return {
         rows: groups.map(g => ({
           ...g, tickets: tickets.filter(t => t.group_id === g.id && t.membership_status === 'ACTIVE').length,
-          done: auctions.filter(a => a.group_id === g.id).length, collected: sum(tickets, g.id, 'total_paid'), outstanding: sum(tickets, g.id, 'total_outstanding'),
+          done: auctions.filter(a => a.group_id === g.id).length, collected: sum(tickets, g.id, 'total_received'), outstanding: sum(tickets, g.id, 'total_outstanding'),
           paidOut: sum(payouts, g.id, 'net_payout'), commission: sum(auctions, g.id, 'commission'),
         })), columns: [
           { label: 'Group', get: r => r.series }, { label: 'Name', get: r => r.name }, { label: 'Status', get: r => r.status },
@@ -322,7 +322,7 @@ async function exportEverything(from: string, to: string, progress: (s: string) 
     { name: 'Tickets & dues (today)', rows: tickets, columns: [
       { label: 'Group', value: t => t.series }, { label: 'Ticket', value: t => t.ticket_no }, { label: 'Member ID', value: t => t.member_code },
       { label: 'Name', value: t => t.name }, { label: 'Phone', value: t => t.phone }, { label: 'Lifted', value: t => t.prized ? 'Yes' : 'No' },
-      { label: 'Status', value: t => t.membership_status }, { label: 'Total paid (₹)', value: t => R(t.total_paid) },
+      { label: 'Status', value: t => t.membership_status }, { label: 'Net subscription paid (₹)', value: t => R(t.total_paid) },
       { label: 'Previous due (₹)', value: t => R(t.arrears) }, { label: 'Current due (₹)', value: t => R(t.current_balance) },
       { label: 'Total outstanding (₹)', value: t => R(t.total_outstanding) }, { label: 'Overdue months', value: t => t.overdue_months }] },
     { name: 'Receipts', rows: receipts, columns: [

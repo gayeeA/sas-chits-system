@@ -19,6 +19,8 @@ import {
   monthName,
   PAYMENT_MODES,
   rupees,
+  toPaise,
+  toRupees,
   todayISO,
 } from "../chit";
 import { receiptImageSavedLocation, RECEIPT_SELECT, saveReceiptImageToDevice, shareReceiptImageToWhatsApp } from "../receipts";
@@ -36,6 +38,11 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
   const [downloadTarget, setDownloadTarget] = useState<any>(null);
   const [paperScanUri, setPaperScanUri] = useState<string | null>(null);
   const [canUpdateCheque, setCanUpdateCheque] = useState(false);
+  const [canManageReceipts, setCanManageReceipts] = useState(false);
+  const [receiptAction, setReceiptAction] = useState<{ receipt: any; mode: 'edit' | 'delete' } | null>(null);
+  const [correctionAmount, setCorrectionAmount] = useState('');
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [correcting, setCorrecting] = useState(false);
   const imageRef = useRef<ViewShotRef>(null);
   const downloadImageRef = useRef<ViewShotRef>(null);
 
@@ -64,6 +71,7 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
         .eq("id", data.user.id)
         .single();
       setCanUpdateCheque(["owner", "manager"].includes(profile?.role));
+      setCanManageReceipts(profile?.role === 'owner');
     });
   }, [load]);
 
@@ -193,6 +201,53 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
     else await load();
   };
 
+  const openReceiptAction = (receipt: any, mode: 'edit' | 'delete') => {
+    setReceiptAction({ receipt, mode });
+    setCorrectionAmount(String(toRupees(receipt.total)));
+    setCorrectionReason('');
+  };
+
+  const saveReceiptAction = async () => {
+    if (!receiptAction || !correctionReason.trim()) {
+      Alert.alert('Reason required', 'Enter a reason for this receipt change.');
+      return;
+    }
+    const { receipt, mode } = receiptAction;
+    const amount = Number(correctionAmount);
+    if (mode === 'edit' && (!Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(toPaise(amount)))) {
+      Alert.alert('Invalid amount', 'Enter a valid corrected amount greater than zero.');
+      return;
+    }
+    setCorrecting(true);
+    try {
+      if (mode === 'delete') {
+        const { error } = await supabase.from('receipts').update({
+          status: 'CANCELLED', cancelled_reason: correctionReason.trim(),
+        }).eq('id', receipt.id);
+        if (error) throw new Error(error.message);
+        setReceiptAction(null);
+        await load();
+      } else {
+        const { data: replacementId, error } = await supabase.rpc('correct_receipt_amount', {
+          p_receipt_id: receipt.id,
+          p_new_amount: toPaise(amount),
+          p_reason: correctionReason.trim(),
+        });
+        if (error) throw new Error(error.message);
+        const { data: replacement, error: fetchError } = await supabase.from('receipts')
+          .select(RECEIPT_SELECT).eq('id', replacementId).single();
+        if (fetchError) throw new Error(fetchError.message);
+        setReceiptAction(null);
+        await load();
+        setShareTarget(replacement);
+      }
+    } catch (e) {
+      Alert.alert('Could not update receipt', supabaseErrorMessage(e instanceof Error ? e.message : String(e)));
+    } finally {
+      setCorrecting(false);
+    }
+  };
+
   return (
     <View style={st.page}>
       <TouchableOpacity style={st.homeBtn} onPress={() => navigation.goBack()}>
@@ -315,6 +370,13 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
                 </TouchableOpacity>
               </View>
             )}
+            {canManageReceipts && r.status === 'ACTIVE' && <View style={[st.row, { justifyContent: 'flex-start', flexWrap: 'wrap', marginTop: 6 }]}>
+              {!r.legacy_receipt_sources?.length && !(r.mode === 'Cheque' && r.cheque_tracking?.clearance_status !== 'PENDING') &&
+                <TouchableOpacity style={st.smallBtn} onPress={() => openReceiptAction(r, 'edit')}><Text>Edit amount</Text></TouchableOpacity>}
+              <TouchableOpacity style={[st.smallBtn, { backgroundColor: '#fdeaea' }]} onPress={() => openReceiptAction(r, 'delete')}>
+                <Text style={{ color: '#820F10' }}>Delete / reverse</Text>
+              </TouchableOpacity>
+            </View>}
           </View>
         )}
       />
@@ -372,6 +434,22 @@ export default function TodayScreen({ navigation }: ScreenProps<"Today">) {
               )}
               {paperScanUri && <><Text style={st.lb}>Original paper receipt photo (also attached in WhatsApp)</Text><Image source={{ uri: paperScanUri }} style={{ width: '100%', height: 180 }} resizeMode="contain" /></>}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={!!receiptAction} transparent animationType="fade" onRequestClose={() => setReceiptAction(null)}>
+        <View style={{ flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#0008' }}>
+          <View style={[st.card, { backgroundColor: '#fff' }]}>
+            <Text style={st.name}>{receiptAction?.mode === 'edit' ? 'Correct receipt amount' : 'Delete / reverse receipt'}</Text>
+            <Text style={st.hint}>Receipt #{receiptAction?.receipt.receipt_no}. The original record will be retained for audit.</Text>
+            {receiptAction?.mode === 'edit' && <TextInput style={st.in} placeholder="Correct amount (₹)" keyboardType="decimal-pad"
+              value={correctionAmount} onChangeText={setCorrectionAmount} />}
+            <TextInput style={st.in} placeholder="Reason for change" value={correctionReason} onChangeText={setCorrectionReason}
+              multiline maxLength={500} />
+            <TouchableOpacity style={st.btn} disabled={correcting || !correctionReason.trim()} onPress={() => { void saveReceiptAction(); }}>
+              <Text style={st.bt}>{correcting ? 'Saving…' : receiptAction?.mode === 'edit' ? 'Save corrected receipt' : 'Cancel and reverse receipt'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={st.smallBtn} disabled={correcting} onPress={() => setReceiptAction(null)}><Text>Keep receipt</Text></TouchableOpacity>
           </View>
         </View>
       </Modal>

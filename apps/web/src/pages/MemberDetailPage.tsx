@@ -25,6 +25,7 @@ export default function MemberDetailPage() {
   const [error, setError] = useState('')
   const [followup, setFollowup] = useState<any>({ activity_type: 'Call', notes: '', promised_date: '', next_followup_date: '' })
   const [savingFollowup, setSavingFollowup] = useState(false)
+  const [receiptBusyId, setReceiptBusyId] = useState('')
   const statementImageRef = useRef<HTMLDivElement>(null)
 
   const { data, error: loadError, loading, reload } = useAsync(async () => {
@@ -93,6 +94,50 @@ export default function MemberDetailPage() {
     const { error: assignError } = await supabase.from('memberships').update({ assigned_agent: agentId || null }).eq('id', membershipId)
     setError(assignError ? errorText(assignError) : '')
     if (!assignError) await reload()
+  }
+
+  const cancelMemberReceipt = async (receipt: any) => {
+    const reason = window.prompt(`Delete receipt ${receipt.receipt_no} (${rupees(receipt.total)})? This will cancel it and reverse its payment from the member's balance. Enter a reason:`)
+    if (!reason?.trim()) return
+    setReceiptBusyId(receipt.id); setError('')
+    try {
+      const { error: cancelError } = await supabase.from('receipts').update({
+        status: 'CANCELLED', cancelled_reason: reason.trim(),
+      }).eq('id', receipt.id)
+      if (cancelError) setError(errorText(cancelError))
+      else await reload()
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setReceiptBusyId('')
+    }
+  }
+
+  const editMemberReceipt = async (receipt: any) => {
+    const amountText = window.prompt(`Correct amount for receipt ${receipt.receipt_no} (₹):`, String(toRupees(receipt.total)))
+    if (amountText === null) return
+    const amount = Number(amountText)
+    if (!Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(toPaise(amount))) {
+      setError('Enter a valid corrected amount greater than zero.')
+      return
+    }
+    const reason = window.prompt('Why is this receipt amount being corrected?')
+    if (!reason?.trim()) return
+    setReceiptBusyId(receipt.id); setError('')
+    try {
+      const replacementId = must(await supabase.rpc('correct_receipt_amount', {
+        p_receipt_id: receipt.id,
+        p_new_amount: toPaise(amount),
+        p_reason: reason.trim(),
+      })) as string
+      const replacement = must(await supabase.from('receipts').select(RECEIPT_SELECT).eq('id', replacementId).single())
+      await reload()
+      showReceipt(replacement)
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setReceiptBusyId('')
+    }
   }
 
   const shareStatement = async () => {
@@ -201,7 +246,7 @@ export default function MemberDetailPage() {
       <div className="stat"><span className="stat-label">Current month due</span><b className="stat-value">{rupees(current)}</b></div>
       <div className={`stat ${outstanding ? 'bad' : 'good'}`}><span className="stat-label">Subscription outstanding</span><b className="stat-value">{rupees(outstanding)}</b></div>
       <div className="stat"><span className="stat-label">Separate interest charges</span><b className="stat-value">{rupees(interestDue)}</b></div>
-      <div className="stat"><span className="stat-label">Cash received</span><b className="stat-value">{rupees(totalPaid)}</b><span className="stat-hint">Applied to subscriptions: {rupees(subscriptionApplied)} · {receipts.filter(r => r.status === 'ACTIVE').length} receipts</span></div>
+      <div className="stat"><span className="stat-label">Net subscription paid</span><b className="stat-value">{rupees(subscriptionApplied)}</b><span className="stat-hint">Cash received: {rupees(totalPaid)} · {receipts.filter(r => r.status === 'ACTIVE').length} receipts</span></div>
     </div>
 
     <div className="two-col">
@@ -278,12 +323,19 @@ export default function MemberDetailPage() {
     </>}
 
     {tab === 'payments' && <section className="card">{receipts.length ? <div className="table-wrap"><table>
-      <thead><tr><th>Receipt</th><th>Date</th><th>Group</th><th>Month</th><th>Mode</th><th className="r">Amount</th><th>Status</th></tr></thead>
+      <thead><tr><th>Receipt</th><th>Date</th><th>Group</th><th>Month</th><th>Mode</th><th className="r">Amount</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>{receipts.map(r => <tr key={r.id} className={r.status === 'CANCELLED' ? 'struck' : ''}>
         <td><button className="link" onClick={() => showReceipt(r)}>{r.receipt_no}</button></td><td>{formatDate(r.receipt_date)}</td>
         <td>{r.memberships?.chit_groups?.series}</td><td>{monthName(r.month_label)}</td><td>{r.mode}</td>
-        <td className="r"><Money value={r.total} /></td><td><Badge status={r.status} /></td></tr>)}</tbody></table></div>
-      : <Empty>No payments yet.</Empty>}</section>}
+        <td className="r"><Money value={r.total} /></td><td><Badge status={r.status} /></td>
+        <td>{auth.isOwner && r.status === 'ACTIVE' && <>
+          {!r.legacy_receipt_sources?.length && !(r.mode === 'Cheque' && r.cheque_tracking?.clearance_status !== 'PENDING') && <button className="small" disabled={receiptBusyId === r.id} onClick={() => { void editMemberReceipt(r) }}>Edit amount</button>}{' '}
+          <button className="small danger" disabled={receiptBusyId === r.id} onClick={() => { void cancelMemberReceipt(r) }}>{receiptBusyId === r.id ? 'Saving…' : 'Delete / reverse'}</button>
+        </>}</td></tr>)}</tbody></table></div>
+      : <Empty>No payments yet.</Empty>}
+      <ErrorMessage>{error}</ErrorMessage>
+      <p className="muted small">Delete cancels the receipt and reverses its allocations; the audit record is retained. Editing amount cancels the original and creates a corrected replacement receipt.</p>
+    </section>}
 
     {tab === 'lifts' && <section className="card">{lifts.length ? <div className="table-wrap"><table>
       <thead><tr><th>Group</th><th>Month</th><th className="r">Bid / discount</th><th className="r">Prize amount</th><th>Payout</th></tr></thead>

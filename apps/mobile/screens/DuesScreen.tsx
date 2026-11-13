@@ -98,12 +98,12 @@ export default function DuesScreen({ navigation }: ScreenProps<'Dues'>) {
             <Text style={[st.name, { flexShrink: 0, color: due.total_outstanding || due.interest_due ? '#820F10' : '#11734b' }]}>{due.total_outstanding || due.interest_due ? rupees(due.total_outstanding + due.interest_due) : 'Paid'}</Text></View>
           <Text style={st.hint}>{due.series} #{due.ticket_no} · {due.member_code}{due.phone ? ` · ${due.phone}` : ''}</Text>
           {due.total_outstanding > 0 || due.interest_due > 0 ? (
-            <Text>Cash received {rupees(Number(due.total_paid) || 0)} · Subscription applied {rupees(Number(due.subscription_paid) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Interest due {rupees(Number(due.interest_due) || 0)} · Previous due {rupees(due.arrears)}
+            <Text>Net subscription paid {rupees(Number(due.total_paid) || 0)} · Cash received {rupees(Number(due.total_received) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Interest due {rupees(Number(due.interest_due) || 0)} · Previous due {rupees(due.arrears)}
               {'\n'}This month: Gross {rupees(Number(due.current_gross) || 0)} · Dividend {rupees(Number(due.current_dividend) || 0)}
               {' · '}Balance remaining {rupees(due.current_balance)}
               {due.overdue > 0 ? `  ·  ${due.overdue_months} month(s) overdue` : ''}</Text>
           ) : (
-            <Text style={{ color: '#11734b', fontSize: 13 }}>Cash received {rupees(Number(due.total_paid) || 0)} · Subscription applied {rupees(Number(due.subscription_paid) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Interest due {rupees(Number(due.interest_due) || 0)} · Up to date</Text>
+            <Text style={{ color: '#11734b', fontSize: 13 }}>Net subscription paid {rupees(Number(due.total_paid) || 0)} · Cash received {rupees(Number(due.total_received) || 0)} · Advance credit {rupees(Number(due.advance_credit) || 0)} · Interest due {rupees(Number(due.interest_due) || 0)} · Up to date</Text>
           )}
         </TouchableOpacity>
         <View style={[st.row, { marginTop: 8, justifyContent: 'flex-start', flexWrap: 'wrap', rowGap: 6 }]}>

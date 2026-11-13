@@ -28,6 +28,7 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
   const [ticketForm, setTicketForm] = useState<TicketForm | null>(null)
   const [targetCustomer, setTargetCustomer] = useState('')
   const [ticketNumber, setTicketNumber] = useState('')
+  const [swapTicketId, setSwapTicketId] = useState('')
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -166,6 +167,22 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
     }
   }
 
+  const swapTickets = (first: TicketRow, second: TicketRow) => {
+    Alert.alert('Swap ticket numbers?', `#${first.ticket_no} ${first.name} and #${second.ticket_no} ${second.name} will exchange ticket numbers. Their payment and auction history stays with each member.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Swap', onPress: () => { void (async () => {
+        setSaving(true)
+        const { error: swapError } = await supabase.rpc('swap_membership_tickets', {
+          p_first_membership_id: first.membership_id,
+          p_second_membership_id: second.membership_id,
+        })
+        setSaving(false)
+        if (swapError) Alert.alert('Could not swap tickets', supabaseErrorMessage(swapError.message))
+        else { setSwapTicketId(''); await load() }
+      })() } },
+    ])
+  }
+
   const visibleMembers = members.filter(member => {
     const memberTickets = tickets.filter(ticket => ticket.customer_id === member.id)
     const searchText = `${member.name} ${member.member_code ?? ''} ${member.phone ?? ''} ${memberTickets.map(ticket => `${ticket.series} #${ticket.ticket_no}`).join(' ')}`.toLowerCase()
@@ -268,6 +285,18 @@ export default function MemberGroupManagementScreen({ navigation }: ScreenProps<
           <TouchableOpacity style={[st.smallBtn, { alignSelf: 'flex-start', marginTop: 8 }]} onPress={() => openTicketForm({ mode: 'replace', ticket })}>
             <Text>Change member / ticket</Text>
           </TouchableOpacity>
+          {ticket.membership_status === 'ACTIVE' && <TouchableOpacity style={[st.smallBtn, { alignSelf: 'flex-start', marginTop: 8 }]}
+            onPress={() => setSwapTicketId(swapTicketId === ticket.membership_id ? '' : ticket.membership_id)}>
+            <Text>{swapTicketId === ticket.membership_id ? 'Cancel ticket swap' : 'Swap ticket'}</Text>
+          </TouchableOpacity>}
+          {swapTicketId === ticket.membership_id && <View style={{ marginTop: 8 }}>
+            <Text style={st.hint}>Choose another active ticket in this group:</Text>
+            {groupTickets.filter(other => other.membership_id !== ticket.membership_id && other.membership_status === 'ACTIVE').map(other =>
+              <TouchableOpacity key={other.membership_id} disabled={saving} style={[st.smallBtn, { alignSelf: 'flex-start', marginTop: 6 }]}
+                onPress={() => swapTickets(ticket, other)}>
+                <Text>#{other.ticket_no} · {other.name}</Text>
+              </TouchableOpacity>)}
+          </View>}
         </View>)}
       </>}
       {ticketForm && selectedGroup && <View style={st.card}>

@@ -41,8 +41,8 @@ export default function DuesPage() {
         ? <ExportButton filename="dues-member-wise.csv" rows={memberRows} columns={[
           { label: 'Member ID', value: r => r.member_code }, { label: 'Name', value: r => r.name }, { label: 'Phone', value: r => r.phone },
           { label: 'Group', value: r => r.series }, { label: 'Ticket', value: r => r.ticket_no },
-          { label: 'Total cash received (₹)', value: r => csvRupees(r.total_paid) },
-          { label: 'Applied to subscriptions (₹)', value: r => csvRupees(r.subscription_paid) },
+          { label: 'Net subscription paid (₹)', value: r => csvRupees(r.total_paid) },
+          { label: 'Total cash received (₹)', value: r => csvRupees(r.total_received) },
           { label: 'Separate interest due (₹)', value: r => csvRupees(r.interest_due) },
           { label: 'Advance credit (₹)', value: r => csvRupees(r.advance_credit) },
           { label: 'Previous due (₹)', value: r => csvRupees(r.arrears) }, { label: 'Remaining balance (₹)', value: r => csvRupees(r.current_balance) },
@@ -92,7 +92,7 @@ export default function DuesPage() {
       {tickets.data && memberRows.length > 0 && <div className="due-cards">{memberRows.map(t => <div key={t.membership_id} className="due-card">
         <div className="due-card-top"><Link to={`/members/${t.customer_id}`}><b>{t.name}</b></Link><b className="num">{rupees(t.total_outstanding + t.interest_due)}</b></div>
         <div className="muted small">{t.series} #{t.ticket_no} · {t.member_code}{t.phone ? ` · ${t.phone}` : ''}</div>
-        <div className="small">Cash received {rupees(t.total_paid)} · Applied to subscriptions {rupees(t.subscription_paid)} · Advance credit {rupees(t.advance_credit)} · Interest due {rupees(t.interest_due)} · Previous due {rupees(t.arrears)}</div>
+        <div className="small">Net subscription paid {rupees(t.total_paid)} · Cash received {rupees(t.total_received)} · Advance credit {rupees(t.advance_credit)} · Interest due {rupees(t.interest_due)} · Previous due {rupees(t.arrears)}</div>
         <div className="small">This month: Gross {rupees(t.current_gross)} · Dividend {rupees(t.current_dividend)}
           {' · '}Balance remaining {rupees(t.current_balance)}
           {t.overdue > 0 && <> · <Badge status="OVERDUE">{t.overdue_months} month(s) overdue</Badge></>}</div>
@@ -100,14 +100,14 @@ export default function DuesPage() {
           <Link className="btn small pri" to={`/collect?membership=${t.membership_id}`}>Collect</Link></div>
       </div>)}</div>}
       {tickets.data && (memberRows.length ? <section className="card due-table"><div className="table-wrap"><table>
-        <thead><tr><th>Member</th><th>Group / ticket</th><th className="r">Cash received</th><th className="r">Subscription applied</th><th className="r">Interest due</th><th className="r">Previous due</th>
+        <thead><tr><th>Member</th><th>Group / ticket</th><th className="r">Net subscription paid</th><th className="r">Cash received</th><th className="r">Interest due</th><th className="r">Previous due</th>
           <th className="r">Current gross / dividend / balance remaining</th>          <th className="r">Total incl. interest</th>
           <th>Overdue since</th><th>Follow up</th><th /></tr></thead>
         <tbody>{memberRows.map(t => <tr key={t.membership_id}>
           <td><Link to={`/members/${t.customer_id}`}><b>{t.name}</b></Link><div className="muted small">{t.member_code}{t.phone ? ` · ${t.phone}` : ''}</div></td>
           <td>{t.series} #{t.ticket_no}</td>
           <td className="r"><Money value={t.total_paid} /></td>
-          <td className="r"><Money value={t.subscription_paid} /></td>
+          <td className="r"><Money value={t.total_received} /></td>
           <td className="r"><Money value={t.interest_due} /></td>
           <td className="r">{t.arrears ? <Money value={t.arrears} /> : '—'}</td>
           <td className="r"><div>Gross <Money value={t.current_gross} /></div><div>Dividend −<Money value={t.current_dividend} /></div>

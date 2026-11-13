@@ -13,6 +13,7 @@ export type MemberDue = {
   due: number
   paid: number
   total_paid: number
+  total_received: number
   subscription_paid: number
   interest_due: number
   arrears: number
